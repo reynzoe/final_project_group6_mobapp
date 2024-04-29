@@ -6,22 +6,12 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 });
 
-const moneyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-});
-
 export function formatDate(value: string | null, fallback = 'Pending approval') {
   if (!value) {
     return fallback;
   }
 
   return dateFormatter.format(new Date(value));
-}
-
-export function formatCurrency(amount: number) {
-  return moneyFormatter.format(amount);
 }
 
 export function formatRole(role: Role) {

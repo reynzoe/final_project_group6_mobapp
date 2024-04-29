@@ -9,7 +9,7 @@ import { StatCard } from '@/components/stat-card';
 import { palette, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useLibrary } from '@/contexts/library-context';
-import { formatCurrency, formatDate, formatTransactionStatus } from '@/lib/formatting';
+import { formatDate, formatTransactionStatus } from '@/lib/formatting';
 import { Transaction } from '@/types/library';
 
 function isPendingTransaction(transaction: Transaction) {
@@ -84,11 +84,6 @@ function TransactionCard({
           {transaction.returnDate ? formatDate(transaction.returnDate) : 'Not returned yet'}
         </Text>
       </View>
-      <View style={styles.detailRow}>
-        <Text style={styles.detailLabel}>Late Fee</Text>
-        <Text style={styles.detailValue}>{formatCurrency(transaction.lateFee)}</Text>
-      </View>
-
       {showUser ? (
         <View style={styles.memberRow}>
           <Text style={styles.memberTitle}>{transaction.user.fullName}</Text>
@@ -134,7 +129,6 @@ export default function ActivityScreen() {
   ).length;
   const overdueCount = transactions.filter((transaction) => transaction.status === 'OVERDUE').length;
   const returnedCount = transactions.filter((transaction) => transaction.status === 'RETURNED').length;
-  const outstandingFees = transactions.reduce((sum, transaction) => sum + transaction.lateFee, 0);
   const pendingTransactions = transactions.filter(isPendingTransaction);
   const visibleTransactions =
     user.role === 'LIBRARIAN'
@@ -228,7 +222,6 @@ export default function ActivityScreen() {
         <StatCard label="Active" value={`${activeCount}`} accent="accent" />
         <StatCard label="Overdue" value={`${overdueCount}`} accent="warning" />
         <StatCard label="Returned" value={`${returnedCount}`} accent="success" />
-        <StatCard label="Fees" value={formatCurrency(outstandingFees)} accent="primary" />
       </View>
 
       {error ? (

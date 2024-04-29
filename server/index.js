@@ -33,8 +33,6 @@ const {
 
 const PORT = Number(process.env.PORT || 4000);
 const HOST = process.env.HOST || '0.0.0.0';
-const LATE_FEE_PER_DAY = 2.5;
-
 function addDays(dateValue, days) {
   const nextDate = new Date(dateValue);
   nextDate.setDate(nextDate.getDate() + days);
@@ -80,16 +78,6 @@ function getTransactionStatus(transaction) {
   return 'BORROWED';
 }
 
-function getLateFee(transaction) {
-  if (!transaction.dueDate) {
-    return 0;
-  }
-
-  const endDate = transaction.returnDate ? new Date(transaction.returnDate) : new Date();
-  const dueDate = new Date(transaction.dueDate);
-  return diffDays(endDate, dueDate) * LATE_FEE_PER_DAY;
-}
-
 function bookIncludesId(book, bookId) {
   return book.id === bookId || book.copyIds?.includes(bookId);
 }
@@ -120,15 +108,11 @@ function serializeUser(user, store) {
     const status = getTransactionStatus(transaction);
     return status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
   }).length;
-  const outstandingLateFees = userTransactions
-    .filter((transaction) => getTransactionStatus(transaction) === 'OVERDUE')
-    .reduce((sum, transaction) => sum + getLateFee(transaction), 0);
 
   return {
     ...sanitizeUser(user),
     activeLoanCount,
     totalTransactions: userTransactions.length,
-    outstandingLateFees,
   };
 }
 
@@ -144,7 +128,6 @@ function serializeTransaction(transaction, store) {
       status === 'OVERDUE' && transaction.dueDate
         ? diffDays(new Date(), new Date(transaction.dueDate))
         : 0,
-    lateFee: Number(getLateFee(transaction).toFixed(2)),
     book: {
       id: book?.id ?? transaction.bookId,
       title: book?.title ?? 'Unknown title',
@@ -189,7 +172,6 @@ function getDashboardForUser(currentUser, store) {
     (transaction) => getTransactionStatus(transaction) === 'OVERDUE'
   );
   const returnedTransactions = visibleTransactions.filter((transaction) => !!transaction.returnDate);
-  const outstandingFees = overdueTransactions.reduce((sum, transaction) => sum + getLateFee(transaction), 0);
   const categories = Object.entries(
     visibleBooks.reduce((grouped, book) => {
       grouped[book.category] = (grouped[book.category] || 0) + 1;
@@ -229,7 +211,6 @@ function getDashboardForUser(currentUser, store) {
       overdueLoans: overdueTransactions.length,
       totalUsers: currentUser.role === 'LIBRARIAN' ? store.users.length : 1,
       returnedTransactions: returnedTransactions.length,
-      outstandingFees: Number(outstandingFees.toFixed(2)),
     },
     recentTransactions: visibleTransactions
       .slice()

@@ -1,4 +1,6 @@
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppCard } from '@/components/app-card';
 import { BookCover } from '@/components/book-cover';
@@ -6,10 +8,10 @@ import { EmptyState } from '@/components/empty-state';
 import { PillBadge } from '@/components/pill-badge';
 import { ScreenShell } from '@/components/screen-shell';
 import { StatCard } from '@/components/stat-card';
-import { palette, spacing, typography } from '@/constants/library-theme';
+import { palette, radii, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useLibrary } from '@/contexts/library-context';
-import { formatCurrency, formatDate, formatTransactionStatus } from '@/lib/formatting';
+import { formatDate, formatTransactionStatus } from '@/lib/formatting';
 import { Transaction } from '@/types/library';
 
 function TransactionPreview({ transaction }: { transaction: Transaction }) {
@@ -38,6 +40,7 @@ function TransactionPreview({ transaction }: { transaction: Transaction }) {
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { books, dashboard, error, isLoading, reloadAll } = useLibrary();
+  const router = useRouter();
 
   const refreshControl = (
     <RefreshControl
@@ -51,6 +54,10 @@ export default function DashboardScreen() {
 
   if (!user) {
     return null;
+  }
+
+  function goToBooks(bookId?: string) {
+    router.push(bookId ? `/(tabs)/books?bookId=${bookId}` : '/(tabs)/books');
   }
 
   const statCards =
@@ -75,10 +82,10 @@ export default function DashboardScreen() {
             caption: `${dashboard?.summary.totalUsers ?? 0} registered accounts`,
           },
           {
-            label: 'Outstanding Fees',
-            value: formatCurrency(dashboard?.summary.outstandingFees ?? 0),
+            label: 'Returned',
+            value: `${dashboard?.summary.returnedTransactions ?? 0}`,
             accent: 'success' as const,
-            caption: `${dashboard?.summary.returnedTransactions ?? 0} completed returns`,
+            caption: 'Completed returns to date',
           },
         ]
       : [
@@ -101,10 +108,10 @@ export default function DashboardScreen() {
             caption: 'Successfully completed returns',
           },
           {
-            label: 'Fees',
-            value: formatCurrency(dashboard?.summary.outstandingFees ?? 0),
+            label: 'Available',
+            value: `${dashboard?.summary.availableCopies ?? 0}`,
             accent: 'success' as const,
-            caption: 'Calculated using the built-in late fee rules',
+            caption: 'Books ready to borrow today',
           },
         ];
 
@@ -113,8 +120,8 @@ export default function DashboardScreen() {
       title={user.role === 'LIBRARIAN' ? 'Operations Dashboard' : 'Reading Dashboard'}
       subtitle={
         user.role === 'LIBRARIAN'
-          ? 'Track circulation, overdue items, catalog health, and member activity at a glance.'
-          : 'Monitor your current loans, outstanding fees, and recent borrowing activity.'
+          ? 'Track circulation, overdue items, and member activity at a glance.'
+          : 'Monitor your current loans and recent borrowing activity.'
       }
       refreshControl={refreshControl}>
       {error ? (
@@ -125,23 +132,23 @@ export default function DashboardScreen() {
       ) : null}
 
       <View style={styles.welcomeBlock}>
-        <Text style={styles.greeting}>Hello {user.fullName.split(' ')[0]}</Text>
+        <Text style={styles.greeting}>Hello, {user.fullName.split(' ')[0]} 👋</Text>
         <View style={styles.quickStats}>
-          <View style={styles.quickStat}>
-            <Text style={styles.quickValue}>{dashboard?.summary.overdueLoans ?? 0}</Text>
-            <Text style={styles.quickLabel}>Overdue</Text>
-          </View>
           <View style={styles.quickStat}>
             <Text style={styles.quickValue}>{dashboard?.summary.activeLoans ?? 0}</Text>
             <Text style={styles.quickLabel}>Borrowed</Text>
+          </View>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickValue}>{dashboard?.summary.overdueLoans ?? 0}</Text>
+            <Text style={styles.quickLabel}>Overdue</Text>
           </View>
           <View style={styles.quickStat}>
             <Text style={styles.quickValue}>{dashboard?.summary.availableCopies ?? 0}</Text>
             <Text style={styles.quickLabel}>Ready</Text>
           </View>
           <View style={styles.quickStat}>
-            <Text style={styles.quickValue}>{formatCurrency(dashboard?.summary.outstandingFees ?? 0)}</Text>
-            <Text style={styles.quickLabel}>Fees due</Text>
+            <Text style={styles.quickValue}>{dashboard?.summary.returnedTransactions ?? 0}</Text>
+            <Text style={styles.quickLabel}>Returned</Text>
           </View>
         </View>
       </View>
@@ -149,7 +156,10 @@ export default function DashboardScreen() {
       <View style={styles.shelfSection}>
         <View style={styles.sectionHeader}>
           <Text style={styles.shelfTitle}>New at the library</Text>
-          <PillBadge label={`${books.length} books`} tone="primary" />
+          <Pressable style={styles.seeAll} onPress={() => goToBooks()}>
+            <Text style={styles.seeAllLabel}>See all</Text>
+            <Ionicons name="chevron-forward" size={14} color={palette.primary} />
+          </Pressable>
         </View>
         {books.length ? (
           <ScrollView
@@ -157,7 +167,13 @@ export default function DashboardScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.coverRail}>
             {books.slice(0, 12).map((book) => (
-              <View key={book.id} style={styles.coverItem}>
+              <Pressable
+                key={book.id}
+                onPress={() => goToBooks(book.id)}
+                style={({ pressed }) => [
+                  styles.coverItem,
+                  pressed ? styles.coverItemPressed : undefined,
+                ]}>
                 <BookCover
                   title={book.title}
                   author={book.author}
@@ -168,15 +184,17 @@ export default function DashboardScreen() {
                   {book.title}
                 </Text>
                 <Text style={styles.coverMeta} numberOfLines={1}>
-                  {book.availableQuantity} available
+                  {book.availableQuantity > 0
+                    ? `${book.availableQuantity} available`
+                    : 'Checked out'}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
         ) : (
           <EmptyState
             title="No books loaded yet"
-            message="Imported Supabase titles will appear here as cover tiles."
+            message="Imported titles will appear here as cover tiles."
           />
         )}
       </View>
@@ -206,7 +224,7 @@ export default function DashboardScreen() {
       ) : (
         <EmptyState
           title="Everything is on track"
-          message="There are no overdue items right now. Fresh transactions and alerts will show up here automatically."
+          message="There are no overdue items right now. Fresh transactions will show up here automatically."
         />
       )}
 
@@ -246,10 +264,16 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Popular Books</Text>
           {dashboard?.popularBooks.length ? (
             dashboard.popularBooks.map((book) => (
-              <View key={book.bookId} style={styles.metricRow}>
+              <Pressable
+                key={book.bookId}
+                onPress={() => goToBooks(book.bookId)}
+                style={({ pressed }) => [
+                  styles.metricRow,
+                  pressed ? styles.metricRowPressed : undefined,
+                ]}>
                 <Text style={styles.metricLabel}>{book.title}</Text>
                 <Text style={styles.metricValue}>{book.borrowCount}</Text>
-              </View>
+              </Pressable>
             ))
           ) : (
             <Text style={styles.metricHint}>Borrow trends will appear here as circulation grows.</Text>
@@ -268,14 +292,16 @@ const styles = StyleSheet.create({
   },
   welcomeBlock: {
     gap: spacing.md,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.border,
-    paddingBottom: spacing.lg,
+    backgroundColor: palette.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: spacing.lg,
   },
   greeting: {
     color: palette.text,
-    fontFamily: typography.body,
-    fontSize: 20,
+    fontFamily: typography.heading,
+    fontSize: 24,
   },
   quickStats: {
     flexDirection: 'row',
@@ -285,11 +311,15 @@ const styles = StyleSheet.create({
   quickStat: {
     flex: 1,
     gap: 2,
+    paddingVertical: spacing.xs,
+    backgroundColor: palette.surfaceMuted,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
   },
   quickValue: {
     color: palette.text,
     fontFamily: typography.heading,
-    fontSize: 20,
+    fontSize: 22,
   },
   quickLabel: {
     color: palette.textMuted,
@@ -304,7 +334,18 @@ const styles = StyleSheet.create({
   shelfTitle: {
     color: palette.text,
     fontFamily: typography.heading,
-    fontSize: 27,
+    fontSize: 26,
+  },
+  seeAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  seeAllLabel: {
+    color: palette.primary,
+    fontFamily: typography.body,
+    fontSize: 14,
+    fontWeight: '700',
   },
   coverRail: {
     gap: spacing.md,
@@ -313,6 +354,10 @@ const styles = StyleSheet.create({
   coverItem: {
     width: 118,
     gap: spacing.sm,
+    borderRadius: radii.md,
+  },
+  coverItemPressed: {
+    opacity: 0.7,
   },
   coverTitle: {
     color: palette.text,
@@ -353,7 +398,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: palette.text,
     fontFamily: typography.heading,
-    fontSize: 24,
+    fontSize: 22,
   },
   transactionRow: {
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -387,6 +432,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: spacing.md,
+    paddingVertical: 4,
+  },
+  metricRowPressed: {
+    opacity: 0.6,
   },
   metricLabel: {
     flex: 1,
@@ -398,7 +447,7 @@ const styles = StyleSheet.create({
   metricValue: {
     color: palette.primary,
     fontFamily: typography.heading,
-    fontSize: 24,
+    fontSize: 22,
   },
   metricHint: {
     color: palette.textMuted,

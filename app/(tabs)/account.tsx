@@ -11,7 +11,7 @@ import { ScreenShell } from '@/components/screen-shell';
 import { palette, radii, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useLibrary } from '@/contexts/library-context';
-import { formatCurrency, formatRole } from '@/lib/formatting';
+import { formatRole } from '@/lib/formatting';
 import { validateEmail, validatePassword, validateRequiredText } from '@/lib/validation';
 import { LibraryUser, Role } from '@/types/library';
 
@@ -208,7 +208,7 @@ export default function AccountScreen() {
   }
 
   const myActiveLoans = transactions.filter((transaction) => transaction.status !== 'RETURNED').length;
-  const myOutstandingFees = transactions.reduce((sum, transaction) => sum + transaction.lateFee, 0);
+  const myReturnedCount = transactions.filter((transaction) => transaction.status === 'RETURNED').length;
 
   return (
     <>
@@ -253,13 +253,11 @@ export default function AccountScreen() {
               </Text>
             </View>
             <View style={styles.summaryItem}>
-              <Text style={styles.summaryLabel}>Outstanding Fees</Text>
+              <Text style={styles.summaryLabel}>{user.role === 'LIBRARIAN' ? 'Members' : 'Returned'}</Text>
               <Text style={styles.summaryValue}>
-                {formatCurrency(
-                  user.role === 'LIBRARIAN'
-                    ? dashboard?.summary.outstandingFees ?? 0
-                    : myOutstandingFees
-                )}
+                {user.role === 'LIBRARIAN'
+                  ? dashboard?.summary.totalUsers ?? 0
+                  : myReturnedCount}
               </Text>
             </View>
           </View>
@@ -309,9 +307,6 @@ export default function AccountScreen() {
                   <Text style={styles.userStat}>
                     {libraryUser.totalTransactions} total transaction
                     {libraryUser.totalTransactions === 1 ? '' : 's'}
-                  </Text>
-                  <Text style={styles.userStat}>
-                    {formatCurrency(libraryUser.outstandingLateFees)} overdue fees
                   </Text>
                 </View>
 

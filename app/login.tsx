@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
 import { useState } from 'react';
 import {
@@ -14,11 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
-import { BookCover } from '@/components/book-cover';
 import { AppInput } from '@/components/app-input';
+import { BrandLogo } from '@/components/brand-logo';
 import { palette, radii, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
-import { getApiBaseUrl } from '@/lib/api';
 import { validateEmail, validatePassword, validateRequiredText } from '@/lib/validation';
 
 type Mode = 'login' | 'register';
@@ -29,13 +29,23 @@ const demoAccounts = [
     email: 'admin@libraryapp.local',
     password: 'Admin123!',
     role: 'Librarian',
+    icon: 'shield-checkmark-outline' as const,
+    description: 'Full access — manage books, members, and circulation.',
   },
   {
     label: 'Student Demo',
     email: 'student@libraryapp.local',
     password: 'Student123!',
     role: 'Student',
+    icon: 'school-outline' as const,
+    description: 'Browse the catalogue and borrow books.',
   },
+];
+
+const features = [
+  { icon: 'search-outline' as const, label: 'Browse the shelves' },
+  { icon: 'bookmarks-outline' as const, label: 'Borrow with one tap' },
+  { icon: 'time-outline' as const, label: 'Track your loans' },
 ];
 
 export default function LoginScreen() {
@@ -76,16 +86,9 @@ export default function LoginScreen() {
 
     try {
       if (mode === 'login') {
-        await login({
-          email,
-          password,
-        });
+        await login({ email, password });
       } else {
-        await register({
-          fullName,
-          email,
-          password,
-        });
+        await register({ fullName, email, password });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Please try again.';
@@ -98,118 +101,133 @@ export default function LoginScreen() {
       <KeyboardAvoidingView
         style={styles.keyboardShell}
         behavior={Platform.select({ ios: 'padding', default: undefined })}>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}>
           <View style={styles.hero}>
-            <View style={styles.brandLockup}>
-              <Text style={styles.brand}>The Public Library</Text>
-              <Text style={styles.heroTitle}>Library Management System</Text>
-              <Text style={styles.heroCopy}>
-                Search the shelves, manage borrowed books, and keep availability clear for every reader.
+            <View style={styles.logoWrap}>
+              <BrandLogo size="lg" tone="light" />
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={styles.heroTitle}>Your library, in your pocket.</Text>
+              <Text style={styles.heroSubtitle}>
+                Discover new reads, borrow with a tap, and keep your reading life on track.
               </Text>
             </View>
-            <View style={styles.coverStack}>
-              <BookCover title="Reading List" author="Public Library" category="New" size="md" />
-              <BookCover title="Borrowed Today" author="Library Desk" category="Ready" size="md" />
-              <BookCover title="Fresh Finds" author="Collection" category="Books" size="md" />
+            <View style={styles.featureRow}>
+              {features.map((feature) => (
+                <View key={feature.label} style={styles.featureChip}>
+                  <Ionicons name={feature.icon} size={14} color={palette.white} />
+                  <Text style={styles.featureLabel}>{feature.label}</Text>
+                </View>
+              ))}
             </View>
           </View>
 
-          <AppCard>
-            <View style={styles.modeSwitcher}>
-              <Pressable
-                onPress={() => setMode('login')}
-                style={[styles.modeTab, mode === 'login' ? styles.modeTabActive : undefined]}>
-                <Text
-                  style={[
-                    styles.modeTabLabel,
-                    mode === 'login' ? styles.modeTabLabelActive : undefined,
-                  ]}>
-                  Sign In
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => setMode('register')}
-                style={[styles.modeTab, mode === 'register' ? styles.modeTabActive : undefined]}>
-                <Text
-                  style={[
-                    styles.modeTabLabel,
-                    mode === 'register' ? styles.modeTabLabelActive : undefined,
-                  ]}>
-                  Register
-                </Text>
-              </Pressable>
-            </View>
-
-            {mode === 'register' ? (
-              <AppInput
-                label="Full Name"
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Enter your full name"
-                autoCapitalize="words"
-                error={errors.fullName}
-              />
-            ) : null}
-
-            <AppInput
-              label="Email"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              error={errors.email}
-            />
-
-            <AppInput
-              label="Password"
-              value={password}
-              onChangeText={setPassword}
-              placeholder="At least 8 characters"
-              secureTextEntry
-              autoCapitalize="none"
-              error={errors.password}
-              hint={mode === 'register' ? 'Use uppercase, lowercase, and a number.' : undefined}
-            />
-
-            <AppButton
-              label={mode === 'login' ? 'Sign In' : 'Create Student Account'}
-              onPress={handleSubmit}
-              loading={isSubmitting}
-            />
-          </AppCard>
-
-          <AppCard>
-            <Text style={styles.sectionTitle}>Quick Demo Access</Text>
-            <Text style={styles.sectionCopy}>
-              Use one of the seeded accounts below to explore both roles immediately.
-            </Text>
-
-            {demoAccounts.map((account) => (
-              <View key={account.email} style={styles.demoRow}>
-                <View style={styles.demoDetails}>
-                  <Text style={styles.demoLabel}>{account.label}</Text>
-                  <Text style={styles.demoMeta}>
-                    {account.email} / {account.password}
+          <View style={styles.formArea}>
+            <AppCard style={styles.formCard}>
+              <View style={styles.modeSwitcher}>
+                <Pressable
+                  onPress={() => setMode('login')}
+                  style={[styles.modeTab, mode === 'login' ? styles.modeTabActive : undefined]}>
+                  <Text
+                    style={[
+                      styles.modeTabLabel,
+                      mode === 'login' ? styles.modeTabLabelActive : undefined,
+                    ]}>
+                    Sign In
                   </Text>
-                </View>
-                <AppButton
-                  label={`Use ${account.role}`}
-                  variant="secondary"
-                  compact
-                  onPress={() => applyDemoAccount(account.email, account.password)}
-                />
+                </Pressable>
+                <Pressable
+                  onPress={() => setMode('register')}
+                  style={[styles.modeTab, mode === 'register' ? styles.modeTabActive : undefined]}>
+                  <Text
+                    style={[
+                      styles.modeTabLabel,
+                      mode === 'register' ? styles.modeTabLabelActive : undefined,
+                    ]}>
+                    Register
+                  </Text>
+                </Pressable>
               </View>
-            ))}
-          </AppCard>
 
-          <AppCard style={styles.apiCard}>
-            <Text style={styles.sectionTitle}>Development API</Text>
-            <Text style={styles.apiText}>{getApiBaseUrl()}</Text>
-            <Text style={styles.sectionCopy}>
-              Start the backend in a second terminal with <Text style={styles.code}>npm run api</Text>.
-            </Text>
-          </AppCard>
+              <Text style={styles.formHeader}>
+                {mode === 'login' ? 'Welcome back' : 'Create your account'}
+              </Text>
+              <Text style={styles.formSubheader}>
+                {mode === 'login'
+                  ? 'Sign in to continue reading.'
+                  : 'Join Shelby’s in seconds — it’s free for students.'}
+              </Text>
+
+              {mode === 'register' ? (
+                <AppInput
+                  label="Full Name"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Enter your full name"
+                  autoCapitalize="words"
+                  error={errors.fullName}
+                />
+              ) : null}
+
+              <AppInput
+                label="Email"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                error={errors.email}
+              />
+
+              <AppInput
+                label="Password"
+                value={password}
+                onChangeText={setPassword}
+                placeholder="At least 8 characters"
+                secureTextEntry
+                autoCapitalize="none"
+                error={errors.password}
+                hint={mode === 'register' ? 'Use uppercase, lowercase, and a number.' : undefined}
+              />
+
+              <AppButton
+                label={mode === 'login' ? 'Sign In' : 'Create Account'}
+                onPress={handleSubmit}
+                loading={isSubmitting}
+              />
+            </AppCard>
+
+            <AppCard style={styles.demoCard}>
+              <View style={styles.demoHeader}>
+                <Ionicons name="flash-outline" size={18} color={palette.primary} />
+                <Text style={styles.demoTitle}>Quick Demo Access</Text>
+              </View>
+              <Text style={styles.demoCopy}>
+                Try Shelby&rsquo;s instantly with a pre-seeded account.
+              </Text>
+
+              {demoAccounts.map((account) => (
+                <Pressable
+                  key={account.email}
+                  onPress={() => applyDemoAccount(account.email, account.password)}
+                  style={({ pressed }) => [
+                    styles.demoRow,
+                    pressed ? styles.demoRowPressed : undefined,
+                  ]}>
+                  <View style={styles.demoIcon}>
+                    <Ionicons name={account.icon} size={20} color={palette.primary} />
+                  </View>
+                  <View style={styles.demoDetails}>
+                    <Text style={styles.demoLabel}>{account.label}</Text>
+                    <Text style={styles.demoMeta}>{account.description}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
+                </Pressable>
+              ))}
+            </AppCard>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -219,46 +237,71 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: palette.background,
+    backgroundColor: palette.primary,
   },
   keyboardShell: {
     flex: 1,
   },
   content: {
-    padding: spacing.lg,
-    gap: spacing.lg,
     paddingBottom: spacing.xxl,
   },
   hero: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: palette.border,
-    paddingVertical: spacing.xl,
+    backgroundColor: palette.primary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
-  brandLockup: {
-    gap: spacing.sm,
-  },
-  brand: {
-    color: palette.primary,
-    fontFamily: typography.body,
-    fontSize: 13,
-    fontWeight: '900',
-    textTransform: 'uppercase',
-  },
-  heroTitle: {
-    color: palette.text,
-    fontFamily: typography.heading,
-    fontSize: 40,
-    lineHeight: 43,
+  logoWrap: {
+    alignItems: 'flex-start',
   },
   heroCopy: {
-    color: palette.textMuted,
+    gap: spacing.sm,
+    marginTop: spacing.md,
+  },
+  heroTitle: {
+    color: palette.white,
+    fontFamily: typography.heading,
+    fontSize: 36,
+    lineHeight: 40,
+  },
+  heroSubtitle: {
+    color: '#C9CDD3',
     fontFamily: typography.body,
     fontSize: 15,
-    lineHeight: 23,
+    lineHeight: 22,
   },
-  coverStack: {
+  featureRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  featureChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  featureLabel: {
+    color: palette.white,
+    fontFamily: typography.body,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  formArea: {
+    backgroundColor: palette.background,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    gap: spacing.lg,
+    marginTop: -spacing.xl,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  formCard: {
     gap: spacing.md,
   },
   modeSwitcher: {
@@ -285,49 +328,76 @@ const styles = StyleSheet.create({
   modeTabLabelActive: {
     color: palette.primary,
   },
-  sectionTitle: {
+  formHeader: {
     color: palette.text,
     fontFamily: typography.heading,
-    fontSize: 24,
+    fontSize: 26,
+    marginTop: spacing.xs,
   },
-  sectionCopy: {
+  formSubheader: {
     color: palette.textMuted,
     fontFamily: typography.body,
     fontSize: 14,
-    lineHeight: 21,
+    lineHeight: 20,
+    marginTop: -spacing.sm,
+  },
+  demoCard: {
+    gap: spacing.md,
+  },
+  demoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  demoTitle: {
+    color: palette.text,
+    fontFamily: typography.heading,
+    fontSize: 20,
+  },
+  demoCopy: {
+    color: palette.textMuted,
+    fontFamily: typography.body,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: -spacing.xs,
   },
   demoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: palette.border,
     borderRadius: radii.md,
-    padding: spacing.md,
-    gap: spacing.md,
+    backgroundColor: palette.surface,
+  },
+  demoRowPressed: {
+    backgroundColor: palette.surfaceMuted,
+    borderColor: palette.primary,
+  },
+  demoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.md,
+    backgroundColor: palette.primaryMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   demoDetails: {
-    gap: spacing.xs,
+    flex: 1,
+    gap: 2,
   },
   demoLabel: {
     color: palette.text,
     fontFamily: typography.body,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
   },
   demoMeta: {
     color: palette.textMuted,
     fontFamily: typography.body,
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  apiCard: {
-    backgroundColor: palette.surfaceMuted,
-  },
-  apiText: {
-    color: palette.primary,
-    fontFamily: typography.mono,
-    fontSize: 13,
-  },
-  code: {
-    fontFamily: typography.mono,
-    color: palette.primary,
+    fontSize: 12,
+    lineHeight: 17,
   },
 });

@@ -12,7 +12,6 @@ export type SessionUser = {
 export type LibraryUser = SessionUser & {
   activeLoanCount: number;
   totalTransactions: number;
-  outstandingLateFees: number;
 };
 
 export type Book = {
@@ -43,7 +42,6 @@ export type Transaction = {
   returnDate: string | null;
   status: TransactionStatus;
   daysOverdue: number;
-  lateFee: number;
   book: Pick<Book, 'id' | 'title' | 'author' | 'category'>;
   user: Pick<LibraryUser, 'id' | 'fullName' | 'email' | 'role'>;
 };
@@ -57,7 +55,6 @@ export type DashboardData = {
     overdueLoans: number;
     totalUsers: number;
     returnedTransactions: number;
-    outstandingFees: number;
   };
   recentTransactions: Transaction[];
   overdueTransactions: Transaction[];
