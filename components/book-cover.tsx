@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { palette, radii, typography } from '@/constants/library-theme';
+import { radii, typography } from '@/constants/library-theme';
 
 const coverPalettes = [
   { background: '#1E88A8', accent: '#FFE36E', text: '#FFFFFF' },
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: 10,
     justifyContent: 'space-between',
-    shadowColor: palette.text,
+    shadowColor: '#171B1F',
     shadowOpacity: 0.16,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 5 },

@@ -1,43 +1,26 @@
+import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { palette, radii, spacing, typography } from '@/constants/library-theme';
+import { AppPalette, radii, spacing, typography } from '@/constants/library-theme';
+import { useTheme } from '@/contexts/theme-context';
 
 type BadgeTone = 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+type PillBadgeProps = { label: string; tone?: BadgeTone };
 
-type PillBadgeProps = {
-  label: string;
-  tone?: BadgeTone;
-};
-
-const badgeColors = {
-  primary: {
-    backgroundColor: palette.primaryMuted,
-    color: palette.primary,
-  },
-  success: {
-    backgroundColor: palette.successSoft,
-    color: palette.success,
-  },
-  warning: {
-    backgroundColor: palette.warningSoft,
-    color: palette.warning,
-  },
-  danger: {
-    backgroundColor: palette.dangerSoft,
-    color: palette.danger,
-  },
-  info: {
-    backgroundColor: palette.accentSoft,
-    color: palette.accent,
-  },
-  neutral: {
-    backgroundColor: palette.surfaceMuted,
-    color: palette.textMuted,
-  },
-};
+function makeBadgeColors(palette: AppPalette) {
+  return {
+    primary:  { backgroundColor: palette.primaryMuted, color: palette.primary },
+    success:  { backgroundColor: palette.successSoft,  color: palette.success },
+    warning:  { backgroundColor: palette.warningSoft,  color: palette.warning },
+    danger:   { backgroundColor: palette.dangerSoft,   color: palette.danger },
+    info:     { backgroundColor: palette.accentSoft,   color: palette.accent },
+    neutral:  { backgroundColor: palette.surfaceMuted, color: palette.textMuted },
+  };
+}
 
 export function PillBadge({ label, tone = 'neutral' }: PillBadgeProps) {
-  const colors = badgeColors[tone] ?? badgeColors.neutral;
+  const { palette } = useTheme();
+  const colors = useMemo(() => makeBadgeColors(palette)[tone] ?? makeBadgeColors(palette).neutral, [palette, tone]);
 
   return (
     <View style={[styles.badge, { backgroundColor: colors.backgroundColor }]}>
@@ -47,16 +30,6 @@ export function PillBadge({ label, tone = 'neutral' }: PillBadgeProps) {
 }
 
 const styles = StyleSheet.create({
-  badge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radii.pill,
-  },
-  label: {
-    fontFamily: typography.body,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.2,
-  },
+  badge: { alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radii.pill },
+  label: { fontFamily: typography.body, fontSize: 12, fontWeight: '700', letterSpacing: 0.2 },
 });

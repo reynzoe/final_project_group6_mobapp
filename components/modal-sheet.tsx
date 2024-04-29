@@ -1,7 +1,8 @@
-import { PropsWithChildren, ReactNode } from 'react';
+import { PropsWithChildren, ReactNode, useMemo } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { palette, radii, spacing, typography } from '@/constants/library-theme';
+import { AppPalette, radii, spacing, typography } from '@/constants/library-theme';
+import { useTheme } from '@/contexts/theme-context';
 
 type ModalSheetProps = PropsWithChildren<{
   visible: boolean;
@@ -11,25 +12,28 @@ type ModalSheetProps = PropsWithChildren<{
   footer?: ReactNode;
 }>;
 
-export function ModalSheet({
-  visible,
-  title,
-  subtitle,
-  onClose,
-  footer,
-  children,
-}: ModalSheetProps) {
+function makeStyles(palette: AppPalette) {
+  return StyleSheet.create({
+    sheet: { backgroundColor: palette.surface, borderTopLeftRadius: radii.lg, borderTopRightRadius: radii.lg, maxHeight: '88%', borderWidth: 1, borderColor: palette.border },
+    header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg, borderBottomWidth: 1, borderBottomColor: palette.border, flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
+    title: { color: palette.text, fontFamily: typography.heading, fontSize: 24 },
+    subtitle: { color: palette.textMuted, fontFamily: typography.body, fontSize: 14, lineHeight: 20 },
+    close: { color: palette.primary, fontFamily: typography.body, fontSize: 14, fontWeight: '700' },
+  });
+}
+
+export function ModalSheet({ visible, title, subtitle, onClose, footer, children }: ModalSheetProps) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
+
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <Pressable style={styles.dismissLayer} onPress={onClose} />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={styles.keyboardAvoiding}
-        >
+      <View style={staticStyles.backdrop}>
+        <Pressable style={staticStyles.dismissLayer} onPress={onClose} />
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={staticStyles.keyboardAvoiding}>
           <View style={styles.sheet}>
             <View style={styles.header}>
-              <View style={styles.headerCopy}>
+              <View style={staticStyles.headerCopy}>
                 <Text style={styles.title}>{title}</Text>
                 {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
               </View>
@@ -37,8 +41,8 @@ export function ModalSheet({
                 <Text style={styles.close}>Close</Text>
               </Pressable>
             </View>
-            <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
-            {footer ? <View style={styles.footer}>{footer}</View> : null}
+            <ScrollView contentContainerStyle={staticStyles.content}>{children}</ScrollView>
+            {footer ? <View style={staticStyles.footer}>{footer}</View> : null}
           </View>
         </KeyboardAvoidingView>
       </View>
@@ -46,63 +50,11 @@ export function ModalSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(14, 22, 28, 0.45)',
-  },
-  dismissLayer: {
-    flex: 1,
-  },
-  keyboardAvoiding: {
-    width: '100%',
-  },
-  sheet: {
-    backgroundColor: palette.surface,
-    borderTopLeftRadius: radii.lg,
-    borderTopRightRadius: radii.lg,
-    maxHeight: '88%',
-    borderWidth: 1,
-    borderColor: palette.border,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: palette.border,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  headerCopy: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  title: {
-    color: palette.text,
-    fontFamily: typography.heading,
-    fontSize: 24,
-  },
-  subtitle: {
-    color: palette.textMuted,
-    fontFamily: typography.body,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  close: {
-    color: palette.primary,
-    fontFamily: typography.body,
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  content: {
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  footer: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    paddingTop: spacing.sm,
-  },
+const staticStyles = StyleSheet.create({
+  backdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(14,22,28,0.55)' },
+  dismissLayer: { flex: 1 },
+  keyboardAvoiding: { width: '100%' },
+  headerCopy: { flex: 1, gap: spacing.xs },
+  content: { padding: spacing.lg, gap: spacing.md },
+  footer: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, paddingTop: spacing.sm },
 });

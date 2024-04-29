@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { ActivityIndicator, Pressable, PressableProps, StyleSheet, Text } from 'react-native';
 
-import { palette, radii, spacing, typography } from '@/constants/library-theme';
+import { AppPalette, radii, spacing, typography } from '@/constants/library-theme';
+import { useTheme } from '@/contexts/theme-context';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
@@ -11,28 +13,14 @@ type AppButtonProps = PressableProps & {
   compact?: boolean;
 };
 
-const variantStyles = {
-  primary: {
-    backgroundColor: palette.primary,
-    borderColor: palette.primary,
-    color: palette.white,
-  },
-  secondary: {
-    backgroundColor: palette.primaryMuted,
-    borderColor: palette.primaryMuted,
-    color: palette.primary,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-    borderColor: palette.border,
-    color: palette.text,
-  },
-  danger: {
-    backgroundColor: palette.danger,
-    borderColor: palette.danger,
-    color: palette.white,
-  },
-};
+function makeVariantStyles(palette: AppPalette) {
+  return {
+    primary: { backgroundColor: palette.primary, borderColor: palette.primary, color: palette.white },
+    secondary: { backgroundColor: palette.primaryMuted, borderColor: palette.primaryMuted, color: palette.primary },
+    ghost: { backgroundColor: 'transparent', borderColor: palette.border, color: palette.text },
+    danger: { backgroundColor: palette.danger, borderColor: palette.danger, color: palette.white },
+  };
+}
 
 export function AppButton({
   label,
@@ -43,6 +31,8 @@ export function AppButton({
   style,
   ...props
 }: AppButtonProps) {
+  const { palette } = useTheme();
+  const variantStyles = useMemo(() => makeVariantStyles(palette), [palette]);
   const currentVariant = variantStyles[variant];
 
   return (
@@ -50,14 +40,10 @@ export function AppButton({
       disabled={disabled || loading}
       style={(state) => {
         const { pressed } = state;
-
         return [
           styles.button,
           compact && styles.compact,
-          {
-            backgroundColor: currentVariant.backgroundColor,
-            borderColor: currentVariant.borderColor,
-          },
+          { backgroundColor: currentVariant.backgroundColor, borderColor: currentVariant.borderColor },
           pressed && !(disabled || loading) && styles.pressed,
           (disabled || loading) && styles.disabled,
           typeof style === 'function' ? style(state) : style,
@@ -74,28 +60,9 @@ export function AppButton({
 }
 
 const styles = StyleSheet.create({
-  button: {
-    minHeight: 50,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  compact: {
-    minHeight: 42,
-    paddingHorizontal: spacing.md,
-  },
-  label: {
-    fontFamily: typography.body,
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  pressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.99 }],
-  },
-  disabled: {
-    opacity: 0.55,
-  },
+  button: { minHeight: 50, borderRadius: radii.pill, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
+  compact: { minHeight: 42, paddingHorizontal: spacing.md },
+  label: { fontFamily: typography.body, fontSize: 15, fontWeight: '700' },
+  pressed: { opacity: 0.9, transform: [{ scale: 0.99 }] },
+  disabled: { opacity: 0.55 },
 });

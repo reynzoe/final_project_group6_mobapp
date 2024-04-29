@@ -11,6 +11,9 @@ import {
   View,
 } from 'react-native';
 
+import { ToastNotification } from '@/components/toast-notification';
+import { useBookmarks } from '@/contexts/bookmarks-context';
+
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { AppInput } from '@/components/app-input';
@@ -19,9 +22,10 @@ import { EmptyState } from '@/components/empty-state';
 import { ModalSheet } from '@/components/modal-sheet';
 import { PillBadge } from '@/components/pill-badge';
 import { ScreenShell } from '@/components/screen-shell';
-import { palette, radii, spacing, typography } from '@/constants/library-theme';
+import { AppPalette, radii, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useLibrary } from '@/contexts/library-context';
+import { useTheme } from '@/contexts/theme-context';
 import { validateNumericField, validateQuantity, validateRequiredText } from '@/lib/validation';
 import { Book, BookPayload } from '@/types/library';
 
@@ -38,6 +42,8 @@ const emptyBookForm = {
 const ALL_CATEGORIES = 'All';
 
 export default function BooksScreen() {
+  const { palette } = useTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const { user } = useAuth();
   const router = useRouter();
   const params = useLocalSearchParams<{ bookId?: string }>();
@@ -55,6 +61,7 @@ export default function BooksScreen() {
     borrowBook,
     reloadAll,
   } = useLibrary();
+  const { isBookmarked, toggleBookmark } = useBookmarks();
   const [query, setQuery] = useState(searchQuery);
   const [activeCategory, setActiveCategory] = useState<string>(ALL_CATEGORIES);
   const [editorVisible, setEditorVisible] = useState(false);
@@ -62,6 +69,30 @@ export default function BooksScreen() {
   const [form, setForm] = useState(emptyBookForm);
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>({});
   const [detailBook, setDetailBook] = useState<Book | null>(null);
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({
+    message: '',
+    visible: false,
+  });
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showToast(message: string) {
+    if (toastTimer.current) {
+      clearTimeout(toastTimer.current);
+    }
+    setToast({ message, visible: true });
+    toastTimer.current = setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }));
+    }, 2500);
+  }
+
+  function handleToggleBookmark(book: Book) {
+    const result = toggleBookmark(book);
+    showToast(
+      result === 'added'
+        ? `"${book.title}" added to bookmarks`
+        : `"${book.title}" removed from bookmarks`
+    );
+  }
 
   const deferredQuery = useDeferredValue(query);
   const loadBooksRef = useRef(loadBooks);
@@ -283,6 +314,11 @@ export default function BooksScreen() {
 
   return (
     <>
+      <ToastNotification
+        message={toast.message}
+        visible={toast.visible}
+        icon={toast.message.includes('removed') ? 'heart-dislike' : 'heart'}
+      />
       <ScreenShell
         title="Catalogue"
         subtitle={
@@ -324,7 +360,7 @@ export default function BooksScreen() {
               return (
                 <Pressable
                   key={category}
-                  onPress={() => setActiveCategory(category)}
+                  onPress={() => setActiveCategory(active ? ALL_CATEGORIES : category)}
                   style={[styles.chip, active ? styles.chipActive : undefined]}>
                   <Text
                     style={[styles.chipLabel, active ? styles.chipLabelActive : undefined]}>
@@ -354,6 +390,7 @@ export default function BooksScreen() {
             const alreadyBorrowed = activeBorrowedBookIds.has(book.id);
             const awaitingApproval = pendingBookIds.has(book.id);
             const unavailable = book.availableQuantity === 0;
+            const bookmarked = isBookmarked(book.id);
 
             return (
               <Pressable
@@ -380,6 +417,23 @@ export default function BooksScreen() {
                             {book.author}
                           </Text>
                         </View>
+                        <Pressable
+                          hitSlop={10}
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            handleToggleBookmark(book);
+                          }}
+                          style={styles.heartButton}>
+                          <Ionicons
+                            name={bookmarked ? 'heart' : 'heart-outline'}
+                            size={22}
+                            color={bookmarked ? '#E05C5C' : palette.textMuted}
+                          />
+                        </Pressable>
+                      </View>
+
+                      <View style={styles.metaRow}>
+                        <PillBadge label={book.category} tone="primary" />
                         <PillBadge
                           label={
                             book.availableQuantity > 0
@@ -388,13 +442,6 @@ export default function BooksScreen() {
                           }
                           tone={book.availableQuantity > 0 ? 'success' : 'danger'}
                         />
-                      </View>
-
-                      <View style={styles.metaRow}>
-                        <PillBadge label={book.category} tone="primary" />
-                        <Text style={styles.inventoryText}>
-                          {book.quantity} total
-                        </Text>
                       </View>
 
                       <View style={styles.tapHint}>
@@ -486,7 +533,19 @@ export default function BooksScreen() {
                 size="lg"
               />
               <View style={styles.detailHeroCopy}>
-                <Text style={styles.detailTitle}>{liveDetailBook.title}</Text>
+                <View style={styles.detailTitleRow}>
+                  <Text style={[styles.detailTitle, { flex: 1 }]}>{liveDetailBook.title}</Text>
+                  <Pressable
+                    hitSlop={10}
+                    onPress={() => handleToggleBookmark(liveDetailBook)}
+                    style={styles.detailHeartButton}>
+                    <Ionicons
+                      name={isBookmarked(liveDetailBook.id) ? 'heart' : 'heart-outline'}
+                      size={26}
+                      color={isBookmarked(liveDetailBook.id) ? '#E05C5C' : palette.textMuted}
+                    />
+                  </Pressable>
+                </View>
                 <Text style={styles.detailAuthor}>by {liveDetailBook.author}</Text>
                 <View style={styles.detailBadges}>
                   <PillBadge label={liveDetailBook.category} tone="primary" />
@@ -615,7 +674,7 @@ export default function BooksScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(palette: AppPalette) { return StyleSheet.create({
   caption: {
     color: palette.textMuted,
     fontFamily: typography.body,
@@ -737,6 +796,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  heartButton: {
+    padding: 4,
+  },
   detailHero: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -745,6 +807,14 @@ const styles = StyleSheet.create({
   detailHeroCopy: {
     flex: 1,
     gap: spacing.sm,
+  },
+  detailTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  detailHeartButton: {
+    paddingTop: 2,
   },
   detailTitle: {
     color: palette.text,
@@ -795,4 +865,4 @@ const styles = StyleSheet.create({
   flexButton: {
     flex: 1,
   },
-});
+}); }

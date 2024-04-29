@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppCard } from '@/components/app-card';
@@ -8,13 +9,16 @@ import { EmptyState } from '@/components/empty-state';
 import { PillBadge } from '@/components/pill-badge';
 import { ScreenShell } from '@/components/screen-shell';
 import { StatCard } from '@/components/stat-card';
-import { palette, radii, spacing, typography } from '@/constants/library-theme';
+import { AppPalette, radii, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useLibrary } from '@/contexts/library-context';
+import { useTheme } from '@/contexts/theme-context';
 import { formatDate, formatTransactionStatus } from '@/lib/formatting';
 import { Transaction } from '@/types/library';
 
 function TransactionPreview({ transaction }: { transaction: Transaction }) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
   return (
     <View style={styles.transactionRow}>
       <View style={styles.transactionCopy}>
@@ -38,9 +42,27 @@ function TransactionPreview({ transaction }: { transaction: Transaction }) {
 }
 
 export default function DashboardScreen() {
+  const { palette } = useTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const { user } = useAuth();
   const { books, dashboard, error, isLoading, reloadAll } = useLibrary();
   const router = useRouter();
+
+  // ── Expanded state for sections ────────────────────────────────────────────
+  const [expandedSections, setExpandedSections] = useState({
+    newBooks: true,
+    actionNeeded: true,
+    recentActivity: true,
+    categories: true,
+    popularBooks: true,
+  });
+
+  function toggleSection(section: keyof typeof expandedSections) {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  }
 
   const refreshControl = (
     <RefreshControl
@@ -154,48 +176,61 @@ export default function DashboardScreen() {
       </View>
 
       <View style={styles.shelfSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.shelfTitle}>New at the library</Text>
-          <Pressable style={styles.seeAll} onPress={() => goToBooks()}>
-            <Text style={styles.seeAllLabel}>See all</Text>
-            <Ionicons name="chevron-forward" size={14} color={palette.primary} />
-          </Pressable>
-        </View>
-        {books.length ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.coverRail}>
-            {books.slice(0, 12).map((book) => (
-              <Pressable
-                key={book.id}
-                onPress={() => goToBooks(book.id)}
-                style={({ pressed }) => [
-                  styles.coverItem,
-                  pressed ? styles.coverItemPressed : undefined,
-                ]}>
-                <BookCover
-                  title={book.title}
-                  author={book.author}
-                  category={book.category}
-                  size="lg"
-                />
-                <Text style={styles.coverTitle} numberOfLines={2}>
-                  {book.title}
-                </Text>
-                <Text style={styles.coverMeta} numberOfLines={1}>
-                  {book.availableQuantity > 0
-                    ? `${book.availableQuantity} available`
-                    : 'Checked out'}
-                </Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-        ) : (
-          <EmptyState
-            title="No books loaded yet"
-            message="Imported titles will appear here as cover tiles."
-          />
+        <Pressable
+          style={styles.shelfHeaderPressable}
+          onPress={() => toggleSection('newBooks')}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.shelfTitle}>New at the library</Text>
+            <Pressable style={styles.seeAll} onPress={() => goToBooks()}>
+              <Text style={styles.seeAllLabel}>See all</Text>
+              <Ionicons name="chevron-forward" size={14} color={palette.primary} />
+            </Pressable>
+            <Ionicons
+              name={expandedSections.newBooks ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={palette.textMuted}
+            />
+          </View>
+        </Pressable>
+        {expandedSections.newBooks && (
+          <>
+            {books.length ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.coverRail}>
+                {books.slice(0, 12).map((book) => (
+                  <Pressable
+                    key={book.id}
+                    onPress={() => goToBooks(book.id)}
+                    style={({ pressed }) => [
+                      styles.coverItem,
+                      pressed ? styles.coverItemPressed : undefined,
+                    ]}>
+                    <BookCover
+                      title={book.title}
+                      author={book.author}
+                      category={book.category}
+                      size="lg"
+                    />
+                    <Text style={styles.coverTitle} numberOfLines={2}>
+                      {book.title}
+                    </Text>
+                    <Text style={styles.coverMeta} numberOfLines={1}>
+                      {book.availableQuantity > 0
+                        ? `${book.availableQuantity} available`
+                        : 'Checked out'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : (
+              <EmptyState
+                title="No books loaded yet"
+                message="Imported titles will appear here as cover tiles."
+              />
+            )}
+          </>
         )}
       </View>
 
@@ -213,13 +248,23 @@ export default function DashboardScreen() {
 
       {dashboard?.overdueTransactions.length ? (
         <AppCard style={styles.alertCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Action Needed</Text>
-            <PillBadge label={`${dashboard.overdueTransactions.length} overdue`} tone="danger" />
-          </View>
-          {dashboard.overdueTransactions.slice(0, 4).map((transaction) => (
-            <TransactionPreview key={transaction.id} transaction={transaction} />
-          ))}
+          <Pressable
+            style={styles.sectionHeaderPressable}
+            onPress={() => toggleSection('actionNeeded')}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Action Needed</Text>
+              <PillBadge label={`${dashboard.overdueTransactions.length} overdue`} tone="danger" />
+              <Ionicons
+                name={expandedSections.actionNeeded ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={palette.textMuted}
+              />
+            </View>
+          </Pressable>
+          {expandedSections.actionNeeded &&
+            dashboard.overdueTransactions.slice(0, 4).map((transaction) => (
+              <TransactionPreview key={transaction.id} transaction={transaction} />
+            ))}
         </AppCard>
       ) : (
         <EmptyState
@@ -229,54 +274,97 @@ export default function DashboardScreen() {
       )}
 
       <AppCard>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <PillBadge label={`${dashboard?.recentTransactions.length ?? 0} records`} tone="primary" />
-        </View>
-        {dashboard?.recentTransactions.length ? (
-          dashboard.recentTransactions.map((transaction) => (
-            <TransactionPreview key={transaction.id} transaction={transaction} />
-          ))
-        ) : (
-          <EmptyState
-            title="No transactions yet"
-            message="Borrowing and return activity will appear here once the library starts circulating books."
-          />
+        <Pressable
+          style={styles.sectionHeaderPressable}
+          onPress={() => toggleSection('recentActivity')}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <PillBadge label={`${dashboard?.recentTransactions.length ?? 0} records`} tone="primary" />
+            <Ionicons
+              name={expandedSections.recentActivity ? 'chevron-up' : 'chevron-down'}
+              size={20}
+              color={palette.textMuted}
+            />
+          </View>
+        </Pressable>
+        {expandedSections.recentActivity && (
+          <>
+            {dashboard?.recentTransactions.length ? (
+              dashboard.recentTransactions.map((transaction) => (
+                <TransactionPreview key={transaction.id} transaction={transaction} />
+              ))
+            ) : (
+              <EmptyState
+                title="No transactions yet"
+                message="Borrowing and return activity will appear here once the library starts circulating books."
+              />
+            )}
+          </>
         )}
       </AppCard>
 
       <View style={styles.doubleColumn}>
         <AppCard style={styles.splitCard}>
-          <Text style={styles.sectionTitle}>Categories</Text>
-          {dashboard?.categories.length ? (
-            dashboard.categories.map((category) => (
-              <View key={category.category} style={styles.metricRow}>
-                <Text style={styles.metricLabel}>{category.category}</Text>
-                <Text style={styles.metricValue}>{category.count}</Text>
-              </View>
-            ))
-          ) : (
-            <Text style={styles.metricHint}>Category insights will appear once books are loaded.</Text>
+          <Pressable
+            style={styles.sectionHeaderPressable}
+            onPress={() => toggleSection('categories')}>
+            <View style={styles.metricHeaderRow}>
+              <Text style={styles.sectionTitle}>Categories</Text>
+              <Ionicons
+                name={expandedSections.categories ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={palette.textMuted}
+              />
+            </View>
+          </Pressable>
+          {expandedSections.categories && (
+            <>
+              {dashboard?.categories.length ? (
+                dashboard.categories.map((category) => (
+                  <View key={category.category} style={styles.metricRow}>
+                    <Text style={styles.metricLabel}>{category.category}</Text>
+                    <Text style={styles.metricValue}>{category.count}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.metricHint}>Category insights will appear once books are loaded.</Text>
+              )}
+            </>
           )}
         </AppCard>
 
         <AppCard style={styles.splitCard}>
-          <Text style={styles.sectionTitle}>Popular Books</Text>
-          {dashboard?.popularBooks.length ? (
-            dashboard.popularBooks.map((book) => (
-              <Pressable
-                key={book.bookId}
-                onPress={() => goToBooks(book.bookId)}
-                style={({ pressed }) => [
-                  styles.metricRow,
-                  pressed ? styles.metricRowPressed : undefined,
-                ]}>
-                <Text style={styles.metricLabel}>{book.title}</Text>
-                <Text style={styles.metricValue}>{book.borrowCount}</Text>
-              </Pressable>
-            ))
-          ) : (
-            <Text style={styles.metricHint}>Borrow trends will appear here as circulation grows.</Text>
+          <Pressable
+            style={styles.sectionHeaderPressable}
+            onPress={() => toggleSection('popularBooks')}>
+            <View style={styles.metricHeaderRow}>
+              <Text style={styles.sectionTitle}>Popular Books</Text>
+              <Ionicons
+                name={expandedSections.popularBooks ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color={palette.textMuted}
+              />
+            </View>
+          </Pressable>
+          {expandedSections.popularBooks && (
+            <>
+              {dashboard?.popularBooks.length ? (
+                dashboard.popularBooks.map((book) => (
+                  <Pressable
+                    key={book.bookId}
+                    onPress={() => goToBooks(book.bookId)}
+                    style={({ pressed }) => [
+                      styles.metricRow,
+                      pressed ? styles.metricRowPressed : undefined,
+                    ]}>
+                    <Text style={styles.metricLabel}>{book.title}</Text>
+                    <Text style={styles.metricValue}>{book.borrowCount}</Text>
+                  </Pressable>
+                ))
+              ) : (
+                <Text style={styles.metricHint}>Borrow trends will appear here as circulation grows.</Text>
+              )}
+            </>
           )}
         </AppCard>
       </View>
@@ -284,7 +372,7 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(palette: AppPalette) { return StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -332,6 +420,12 @@ const styles = StyleSheet.create({
   },
   shelfSection: {
     gap: spacing.md,
+  },
+  shelfHeaderPressable: {
+    marginHorizontal: -spacing.lg,
+    marginTop: -spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   shelfTitle: {
     color: palette.text,
@@ -397,6 +491,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  sectionHeaderPressable: {
+    marginHorizontal: -spacing.lg,
+    marginTop: -spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  metricHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   sectionTitle: {
     color: palette.text,
     fontFamily: typography.heading,
@@ -457,4 +563,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-});
+}); }

@@ -1,19 +1,25 @@
+import { useMemo } from 'react';
 import { StyleSheet, View, ViewProps } from 'react-native';
 
-import { palette, radii, shadow, spacing } from '@/constants/library-theme';
+import { AppPalette, radii, shadow, spacing } from '@/constants/library-theme';
+import { useTheme } from '@/contexts/theme-context';
 
-export function AppCard({ style, ...props }: ViewProps) {
-  return <View style={[styles.card, style]} {...props} />;
+function makeStyles(palette: AppPalette) {
+  return StyleSheet.create({
+    card: {
+      backgroundColor: palette.surface,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: palette.border,
+      padding: spacing.lg,
+      gap: spacing.md,
+      ...shadow,
+    },
+  });
 }
 
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: palette.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#ECEFEB',
-    padding: spacing.lg,
-    gap: spacing.md,
-    ...shadow,
-  },
-});
+export function AppCard({ style, ...props }: ViewProps) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
+  return <View style={[styles.card, style]} {...props} />;
+}

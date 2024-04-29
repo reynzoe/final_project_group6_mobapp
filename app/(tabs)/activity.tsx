@@ -1,14 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Alert, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
 import { EmptyState } from '@/components/empty-state';
 import { PillBadge } from '@/components/pill-badge';
 import { ScreenShell } from '@/components/screen-shell';
-import { palette, radii, spacing, typography } from '@/constants/library-theme';
+import { AppPalette, radii, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useLibrary } from '@/contexts/library-context';
+import { useTheme } from '@/contexts/theme-context';
 import { formatDate, formatTransactionStatus } from '@/lib/formatting';
 import { Transaction } from '@/types/library';
 
@@ -21,7 +23,7 @@ function TransactionRow({
   transaction,
   showUser,
   isAdmin,
-  busy,
+  processingId,
   onApprove,
   onApproveReturn,
   onReturn,
@@ -29,11 +31,13 @@ function TransactionRow({
   transaction: Transaction;
   showUser: boolean;
   isAdmin: boolean;
-  busy: boolean;
+  processingId?: string | null;
   onApprove?: (t: Transaction) => void;
   onApproveReturn?: (t: Transaction) => void;
   onReturn?: (t: Transaction) => void;
 }) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const status = transaction.status;
 
   const badgeTone =
@@ -95,7 +99,7 @@ function TransactionRow({
         <AppButton
           label="Approve Borrow"
           compact
-          loading={busy}
+          loading={processingId === transaction.id}
           onPress={() => onApprove(transaction)}
         />
       ) : null}
@@ -104,7 +108,7 @@ function TransactionRow({
         <AppButton
           label="Process Return"
           compact
-          loading={busy}
+          loading={processingId === transaction.id}
           onPress={() => onApproveReturn(transaction)}
         />
       ) : null}
@@ -113,7 +117,7 @@ function TransactionRow({
         <AppButton
           label="Request Return"
           compact
-          loading={busy}
+          loading={processingId === transaction.id}
           variant="secondary"
           onPress={() => onReturn(transaction)}
         />
@@ -129,6 +133,8 @@ function SectionCard({
   count,
   accent,
   emptyMessage,
+  isExpanded,
+  onToggle,
   children,
 }: {
   icon: string;
@@ -136,8 +142,12 @@ function SectionCard({
   count: number;
   accent: 'primary' | 'warning' | 'danger' | 'success' | 'info';
   emptyMessage: string;
+  isExpanded: boolean;
+  onToggle: () => void;
   children?: React.ReactNode;
 }) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const accentColor =
     accent === 'danger'
       ? palette.danger
@@ -151,20 +161,31 @@ function SectionCard({
 
   return (
     <AppCard style={styles.sectionCard}>
-      <View style={styles.sectionHead}>
-        <View style={[styles.sectionIconWrap, { backgroundColor: accentColor + '18' }]}>
-          <Ionicons name={icon as never} size={18} color={accentColor} />
+      <Pressable onPress={onToggle} style={styles.sectionHeadPressable}>
+        <View style={styles.sectionHead}>
+          <View style={[styles.sectionIconWrap, { backgroundColor: accentColor + '18' }]}>
+            <Ionicons name={icon as never} size={18} color={accentColor} />
+          </View>
+          <Text style={styles.sectionTitle}>{title}</Text>
+          <View style={[styles.sectionBadge, { backgroundColor: accentColor + '20' }]}>
+            <Text style={[styles.sectionBadgeText, { color: accentColor }]}>{count}</Text>
+          </View>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color={palette.textMuted}
+          />
         </View>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <View style={[styles.sectionBadge, { backgroundColor: accentColor + '20' }]}>
-          <Text style={[styles.sectionBadgeText, { color: accentColor }]}>{count}</Text>
-        </View>
-      </View>
+      </Pressable>
 
-      {count === 0 ? (
-        <Text style={styles.emptyText}>{emptyMessage}</Text>
-      ) : (
-        <View style={styles.sectionItems}>{children}</View>
+      {isExpanded && (
+        <>
+          {count === 0 ? (
+            <Text style={styles.emptyText}>{emptyMessage}</Text>
+          ) : (
+            <View style={styles.sectionItems}>{children}</View>
+          )}
+        </>
       )}
     </AppCard>
   );
@@ -172,6 +193,7 @@ function SectionCard({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function ActivityScreen() {
+  const { palette } = useTheme();
   const { user } = useAuth();
   const {
     transactions,
@@ -183,6 +205,26 @@ export default function ActivityScreen() {
     approveBorrow,
     reloadAll,
   } = useLibrary();
+
+  // ── Expanded state for sections ────────────────────────────────────────────
+  const [expandedSections, setExpandedSections] = useState({
+    pendingBorrows: true,
+    pendingReturns: true,
+    activeLoans: true,
+    returned: false,
+  });
+
+  function toggleSection(section: keyof typeof expandedSections) {
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  }
+
+  // ── Track which transaction is being processed ───────────────────────────
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const styles = useMemo(() => createStyles(palette), [palette]);
 
   if (!user) {
     return null;
@@ -219,11 +261,14 @@ export default function ActivityScreen() {
           onPress: () => {
             void (async () => {
               try {
+                setProcessingId(transaction.id);
                 await requestBookReturn(transaction.id);
               } catch (error) {
                 const message =
                   error instanceof Error ? error.message : 'Unable to request return.';
                 Alert.alert('Return request failed', message);
+              } finally {
+                setProcessingId(null);
               }
             })();
           },
@@ -240,11 +285,14 @@ export default function ActivityScreen() {
         onPress: () => {
           void (async () => {
             try {
+              setProcessingId(transaction.id);
               await approveBookReturn(transaction.id);
             } catch (error) {
               const message =
                 error instanceof Error ? error.message : 'Unable to process return.';
               Alert.alert('Process return failed', message);
+            } finally {
+              setProcessingId(null);
             }
           })();
         },
@@ -263,11 +311,14 @@ export default function ActivityScreen() {
           onPress: () => {
             void (async () => {
               try {
+                setProcessingId(transaction.id);
                 await approveBorrow(transaction.id);
               } catch (error) {
                 const message =
                   error instanceof Error ? error.message : 'Unable to approve.';
                 Alert.alert('Approval failed', message);
+              } finally {
+                setProcessingId(null);
               }
             })();
           },
@@ -309,14 +360,16 @@ export default function ActivityScreen() {
             title="Pending Approvals"
             count={pendingBorrows.length}
             accent="warning"
-            emptyMessage="No borrow requests waiting for approval.">
+            emptyMessage="No borrow requests waiting for approval."
+            isExpanded={expandedSections.pendingBorrows}
+            onToggle={() => toggleSection('pendingBorrows')}>
             {pendingBorrows.map((t) => (
               <TransactionRow
                 key={t.id}
                 transaction={t}
                 showUser
                 isAdmin
-                busy={isMutating}
+                processingId={processingId}
                 onApprove={confirmApprove}
               />
             ))}
@@ -327,14 +380,16 @@ export default function ActivityScreen() {
             title="Pending Returns"
             count={pendingReturns.length}
             accent="info"
-            emptyMessage="No returns are waiting to be processed.">
+            emptyMessage="No returns are waiting to be processed."
+            isExpanded={expandedSections.pendingReturns}
+            onToggle={() => toggleSection('pendingReturns')}>
             {pendingReturns.map((t) => (
               <TransactionRow
                 key={t.id}
                 transaction={t}
                 showUser
                 isAdmin
-                busy={isMutating}
+                processingId={processingId}
                 onApproveReturn={confirmApproveReturn}
               />
             ))}
@@ -345,14 +400,16 @@ export default function ActivityScreen() {
             title="Active Loans"
             count={activeLoans.length}
             accent="primary"
-            emptyMessage="No books are currently out on loan.">
+            emptyMessage="No books are currently out on loan."
+            isExpanded={expandedSections.activeLoans}
+            onToggle={() => toggleSection('activeLoans')}>
             {activeLoans.map((t) => (
               <TransactionRow
                 key={t.id}
                 transaction={t}
                 showUser
                 isAdmin
-                busy={isMutating}
+                processingId={processingId}
               />
             ))}
           </SectionCard>
@@ -362,14 +419,16 @@ export default function ActivityScreen() {
             title="Returned"
             count={returned.length}
             accent="success"
-            emptyMessage="No completed returns yet.">
+            emptyMessage="No completed returns yet."
+            isExpanded={expandedSections.returned}
+            onToggle={() => toggleSection('returned')}>
             {returned.map((t) => (
               <TransactionRow
                 key={t.id}
                 transaction={t}
                 showUser
                 isAdmin
-                busy={isMutating}
+                processingId={processingId}
               />
             ))}
           </SectionCard>
@@ -385,18 +444,39 @@ export default function ActivityScreen() {
           ) : null}
 
           <SectionCard
+            icon="time-outline"
+            title="Pending Approvals"
+            count={pendingBorrows.length}
+            accent="warning"
+            emptyMessage="No borrow requests waiting for approval."
+            isExpanded={expandedSections.pendingBorrows}
+            onToggle={() => toggleSection('pendingBorrows')}>
+            {pendingBorrows.map((t) => (
+              <TransactionRow
+                key={t.id}
+                transaction={t}
+                showUser={false}
+                isAdmin={false}
+                processingId={processingId}
+              />
+            ))}
+          </SectionCard>
+
+          <SectionCard
             icon="book-outline"
             title="Active Loans"
             count={studentActive.length}
             accent="primary"
-            emptyMessage="You don't have any active loans right now.">
+            emptyMessage="You don't have any active loans right now."
+            isExpanded={expandedSections.activeLoans}
+            onToggle={() => toggleSection('activeLoans')}>
             {studentActive.map((t) => (
               <TransactionRow
                 key={t.id}
                 transaction={t}
                 showUser={false}
                 isAdmin={false}
-                busy={isMutating}
+                processingId={processingId}
                 onReturn={
                   t.status === 'BORROWED' || t.status === 'OVERDUE'
                     ? confirmReturn
@@ -411,14 +491,16 @@ export default function ActivityScreen() {
             title="Returned"
             count={returned.length}
             accent="success"
-            emptyMessage="Books you return will appear here.">
+            emptyMessage="Books you return will appear here."
+            isExpanded={expandedSections.returned}
+            onToggle={() => toggleSection('returned')}>
             {returned.map((t) => (
               <TransactionRow
                 key={t.id}
                 transaction={t}
                 showUser={false}
                 isAdmin={false}
-                busy={isMutating}
+                processingId={processingId}
               />
             ))}
           </SectionCard>
@@ -428,7 +510,8 @@ export default function ActivityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(palette: AppPalette) {
+  return StyleSheet.create({
   errorCard: {
     backgroundColor: palette.dangerSoft,
   },
@@ -447,6 +530,12 @@ const styles = StyleSheet.create({
   // ── Section card ──────────────────────────────────────────────────────────
   sectionCard: {
     gap: spacing.md,
+  },
+  sectionHeadPressable: {
+    marginHorizontal: -spacing.md,
+    marginTop: -spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   sectionHead: {
     flexDirection: 'row',
@@ -548,4 +637,5 @@ const styles = StyleSheet.create({
   txDateOverdue: {
     color: palette.danger,
   },
-});
+  });
+}

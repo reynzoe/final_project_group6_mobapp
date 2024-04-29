@@ -3,11 +3,12 @@ import React from 'react';
 import { Ionicons } from '@expo/vector-icons';
 
 import { HapticTab } from '@/components/haptic-tab';
-import { palette } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
+import { useTheme } from '@/contexts/theme-context';
 
 export default function TabLayout() {
   const { user } = useAuth();
+  const { palette } = useTheme();
 
   if (!user) {
     return <Redirect href="/login" />;

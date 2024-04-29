@@ -1,7 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { palette, radii, spacing, typography } from '@/constants/library-theme';
+import { lightPalette, radii, spacing, typography } from '@/constants/library-theme';
+import { useTheme } from '@/contexts/theme-context';
+
+// brand-logo sits on the login hero (always dark background), so we resolve
+// palette per render to support theming but keep light defaults for the logo tones.
+const palette = lightPalette; // used only for static fallback below
 
 type LogoSize = 'sm' | 'md' | 'lg';
 
@@ -18,8 +23,10 @@ const sizeMap: Record<LogoSize, { mark: number; icon: number; word: number; tag:
 };
 
 export function BrandLogo({ size = 'md', showWordmark = true, tone = 'dark' }: BrandLogoProps) {
+  const { palette: themePalette } = useTheme();
   const dimensions = sizeMap[size];
   const isDark = tone === 'dark';
+  const p = themePalette;
 
   return (
     <View style={[styles.row, { gap: dimensions.gap }]}>
@@ -29,13 +36,13 @@ export function BrandLogo({ size = 'md', showWordmark = true, tone = 'dark' }: B
           {
             width: dimensions.mark,
             height: dimensions.mark,
-            backgroundColor: isDark ? palette.primary : palette.white,
+            backgroundColor: isDark ? p.primary : p.white,
           },
         ]}>
         <Ionicons
           name="book"
           size={dimensions.icon}
-          color={isDark ? palette.white : palette.primary}
+          color={isDark ? p.white : p.primary}
         />
       </View>
       {showWordmark ? (
@@ -43,14 +50,14 @@ export function BrandLogo({ size = 'md', showWordmark = true, tone = 'dark' }: B
           <Text
             style={[
               styles.wordmark,
-              { fontSize: dimensions.word, color: isDark ? palette.text : palette.white },
+              { fontSize: dimensions.word, color: isDark ? p.text : p.white },
             ]}>
             Shelby&rsquo;s
           </Text>
           <Text
             style={[
               styles.tagline,
-              { fontSize: dimensions.tag, color: isDark ? palette.textMuted : palette.surfaceMuted },
+              { fontSize: dimensions.tag, color: isDark ? p.textMuted : p.surfaceMuted },
             ]}>
             LIBRARY · READ MORE
           </Text>
