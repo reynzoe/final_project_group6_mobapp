@@ -136,7 +136,7 @@ export default function DashboardScreen() {
         <View style={styles.quickStats}>
           <View style={styles.quickStat}>
             <Text style={styles.quickValue}>{dashboard?.summary.activeLoans ?? 0}</Text>
-            <Text style={styles.quickLabel}>Borrowed</Text>
+            <Text style={styles.quickLabel}>Out</Text>
           </View>
           <View style={styles.quickStat}>
             <Text style={styles.quickValue}>{dashboard?.summary.overdueLoans ?? 0}</Text>
@@ -148,7 +148,7 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.quickStat}>
             <Text style={styles.quickValue}>{dashboard?.summary.returnedTransactions ?? 0}</Text>
-            <Text style={styles.quickLabel}>Returned</Text>
+            <Text style={styles.quickLabel}>Done</Text>
           </View>
         </View>
       </View>
@@ -310,16 +310,18 @@ const styles = StyleSheet.create({
   },
   quickStat: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
     backgroundColor: palette.surfaceMuted,
     borderRadius: radii.md,
     paddingHorizontal: spacing.sm,
+    alignItems: 'center',
   },
   quickValue: {
     color: palette.text,
     fontFamily: typography.heading,
-    fontSize: 22,
+    fontSize: 20,
   },
   quickLabel: {
     color: palette.textMuted,

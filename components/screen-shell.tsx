@@ -26,7 +26,7 @@ export function ScreenShell({
         refreshControl={refreshControl as never}>
         <View style={styles.header}>
           <View style={styles.heroCopy}>
-            <Text style={styles.eyebrow}>The Public Library</Text>
+            <Text style={styles.eyebrow}>Shelby&rsquo;s</Text>
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
