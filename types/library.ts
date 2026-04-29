@@ -32,14 +32,14 @@ export type Book = {
   updatedAt: string;
 };
 
-export type TransactionStatus = 'BORROWED' | 'RETURNED' | 'OVERDUE';
+export type TransactionStatus = 'PENDING' | 'BORROWED' | 'RETURNED' | 'OVERDUE';
 
 export type Transaction = {
   id: string;
   bookId: string;
   userId: string;
   borrowDate: string;
-  dueDate: string;
+  dueDate: string | null;
   returnDate: string | null;
   status: TransactionStatus;
   daysOverdue: number;

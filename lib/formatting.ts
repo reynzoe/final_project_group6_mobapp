@@ -30,7 +30,7 @@ export function formatRole(role: Role) {
 
 export function formatTransactionStatus(status: TransactionStatus) {
   if (status === 'PENDING') {
-    return 'Borrowing being processed';
+    return 'Waiting for approval';
   }
 
   if (status === 'BORROWED') {

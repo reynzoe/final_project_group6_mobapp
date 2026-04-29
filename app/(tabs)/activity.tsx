@@ -12,18 +12,30 @@ import { useLibrary } from '@/contexts/library-context';
 import { formatCurrency, formatDate, formatTransactionStatus } from '@/lib/formatting';
 import { Transaction } from '@/types/library';
 
+function isPendingTransaction(transaction: Transaction) {
+  return transaction.status === 'PENDING' || (!transaction.dueDate && !transaction.returnDate);
+}
+
+function getDisplayStatus(transaction: Transaction) {
+  return isPendingTransaction(transaction) ? 'PENDING' : transaction.status;
+}
+
 function TransactionCard({
   transaction,
   canReturn,
   onReturn,
+  onApprove,
   busy,
   showUser,
+  canApprove,
 }: {
   transaction: Transaction;
   canReturn: boolean;
   onReturn: (transaction: Transaction) => void;
+  onApprove: (transaction: Transaction) => void;
   busy: boolean;
   showUser: boolean;
+  canApprove: boolean;
 }) {
   return (
     <AppCard>
@@ -33,13 +45,15 @@ function TransactionCard({
           <Text style={styles.transactionSubtitle}>{transaction.book.author}</Text>
         </View>
         <PillBadge
-          label={formatTransactionStatus(transaction.status)}
+          label={formatTransactionStatus(getDisplayStatus(transaction))}
           tone={
-            transaction.status === 'OVERDUE'
+            getDisplayStatus(transaction) === 'OVERDUE'
               ? 'danger'
-              : transaction.status === 'BORROWED'
+              : getDisplayStatus(transaction) === 'BORROWED'
                 ? 'warning'
-                : 'success'
+                : getDisplayStatus(transaction) === 'PENDING'
+                  ? 'primary'
+                  : 'success'
           }
         />
       </View>
@@ -70,6 +84,14 @@ function TransactionCard({
         </View>
       ) : null}
 
+      {canApprove ? (
+        <AppButton
+          label="Approve Borrow"
+          compact
+          loading={busy}
+          onPress={() => onApprove(transaction)}
+        />
+      ) : null}
       {canReturn ? (
         <AppButton
           label="Process Return"
@@ -84,16 +106,23 @@ function TransactionCard({
 
 export default function ActivityScreen() {
   const { user } = useAuth();
-  const { transactions, error, isLoading, isMutating, returnBook, reloadAll } = useLibrary();
+  const { transactions, error, isLoading, isMutating, returnBook, approveBorrow, reloadAll } = useLibrary();
 
   if (!user) {
     return null;
   }
 
-  const activeCount = transactions.filter((transaction) => transaction.status !== 'RETURNED').length;
+  const activeCount = transactions.filter(
+    (transaction) => transaction.status === 'BORROWED' || transaction.status === 'OVERDUE'
+  ).length;
   const overdueCount = transactions.filter((transaction) => transaction.status === 'OVERDUE').length;
   const returnedCount = transactions.filter((transaction) => transaction.status === 'RETURNED').length;
   const outstandingFees = transactions.reduce((sum, transaction) => sum + transaction.lateFee, 0);
+  const pendingTransactions = transactions.filter(isPendingTransaction);
+  const visibleTransactions =
+    user.role === 'LIBRARIAN'
+      ? transactions.filter((transaction) => !isPendingTransaction(transaction))
+      : transactions;
 
   function confirmReturn(transaction: Transaction) {
     Alert.alert('Return book', `Mark "${transaction.book.title}" as returned?`, [
@@ -110,6 +139,28 @@ export default function ActivityScreen() {
             } catch (error) {
               const message = error instanceof Error ? error.message : 'Unable to process return.';
               Alert.alert('Return failed', message);
+            }
+          })();
+        },
+      },
+    ]);
+  }
+
+  function confirmApprove(transaction: Transaction) {
+    Alert.alert('Approve borrow', `Approve "${transaction.book.title}" for ${transaction.user.fullName}?`, [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Approve',
+        onPress: () => {
+          void (async () => {
+            try {
+              await approveBorrow(transaction.id);
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Unable to approve borrow request.';
+              Alert.alert('Approval failed', message);
             }
           })();
         },
@@ -148,15 +199,38 @@ export default function ActivityScreen() {
         </AppCard>
       ) : null}
 
-      {transactions.length ? (
-        transactions.map((transaction) => (
+      {user.role === 'LIBRARIAN' && pendingTransactions.length ? (
+        <AppCard style={styles.pendingCard}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Pending Approvals</Text>
+            <PillBadge label={`${pendingTransactions.length} waiting`} tone="warning" />
+          </View>
+          {pendingTransactions.map((transaction) => (
+            <TransactionCard
+              key={transaction.id}
+              transaction={transaction}
+              canReturn={false}
+              onReturn={confirmReturn}
+              onApprove={confirmApprove}
+              busy={isMutating}
+              showUser
+              canApprove
+            />
+          ))}
+        </AppCard>
+      ) : null}
+
+      {visibleTransactions.length ? (
+        visibleTransactions.map((transaction) => (
           <TransactionCard
             key={transaction.id}
             transaction={transaction}
-            canReturn={transaction.status !== 'RETURNED'}
+            canReturn={transaction.status !== 'RETURNED' && !isPendingTransaction(transaction)}
             onReturn={confirmReturn}
+            onApprove={confirmApprove}
             busy={isMutating}
             showUser={user.role === 'LIBRARIAN'}
+            canApprove={user.role === 'LIBRARIAN' && isPendingTransaction(transaction)}
           />
         ))
       ) : (
@@ -193,6 +267,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  pendingCard: {
+    gap: spacing.md,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    color: palette.text,
+    fontFamily: typography.heading,
+    fontSize: 22,
   },
   transactionCopy: {
     flex: 1,
