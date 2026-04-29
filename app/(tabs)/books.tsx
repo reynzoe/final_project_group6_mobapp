@@ -207,23 +207,38 @@ export default function BooksScreen() {
     ]);
   }
 
-  const borrowedBookIds = new Set(
+  const pendingBookIds = new Set(
     transactions
-      .filter((transaction) => transaction.userId === user.id && transaction.status !== 'RETURNED')
+      .filter(
+        (transaction) =>
+          transaction.userId === user.id &&
+          (transaction.status === 'PENDING' || (!transaction.dueDate && !transaction.returnDate))
+      )
       .map((transaction) => transaction.bookId)
   );
+  const activeBorrowedBookIds = new Set(
+    transactions
+      .filter(
+        (transaction) =>
+          transaction.userId === user.id &&
+          (transaction.status === 'BORROWED' || transaction.status === 'OVERDUE')
+      )
+      .map((transaction) => transaction.bookId)
+  );
+
+  const isLibrarian = user.role === 'LIBRARIAN';
 
   return (
     <>
       <ScreenShell
         title="Catalogue"
         subtitle={
-          user.role === 'LIBRARIAN'
+          isLibrarian
             ? 'Search the collection, add new titles, and keep inventory quantities accurate.'
             : 'Search by title, author, or category and borrow books with live availability checks.'
         }
         action={
-          user.role === 'LIBRARIAN' ? (
+          isLibrarian ? (
             <AppButton label="Add Book" variant="secondary" compact onPress={openCreateModal} />
           ) : null
         }
@@ -257,7 +272,8 @@ export default function BooksScreen() {
 
         {books.length ? (
           books.map((book) => {
-            const alreadyBorrowed = borrowedBookIds.has(book.id);
+            const alreadyBorrowed = activeBorrowedBookIds.has(book.id);
+            const awaitingApproval = pendingBookIds.has(book.id);
             const unavailable = book.availableQuantity === 0;
 
             return (
@@ -294,7 +310,7 @@ export default function BooksScreen() {
                       Location: Cabinet {book.cabinet} • Rack {book.rack} • Row {book.row}
                     </Text>
 
-                    {user.role === 'LIBRARIAN' ? (
+                    {isLibrarian ? (
                       <View style={styles.actionsRow}>
                         <AppButton
                           label="Edit"
@@ -314,13 +330,15 @@ export default function BooksScreen() {
                     ) : (
                       <AppButton
                         label={
-                          alreadyBorrowed
-                            ? 'Already Borrowed'
-                            : unavailable
-                              ? 'Unavailable'
-                              : 'Borrow Book'
+                          awaitingApproval
+                            ? 'Waiting for approval'
+                            : alreadyBorrowed
+                              ? 'Already Borrowed'
+                              : unavailable
+                                ? 'Unavailable'
+                                : 'Borrow Book'
                         }
-                        disabled={alreadyBorrowed || unavailable || isMutating}
+                        disabled={awaitingApproval || alreadyBorrowed || unavailable || isMutating}
                         onPress={() => confirmBorrow(book)}
                       />
                     )}

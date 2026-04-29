@@ -51,12 +51,20 @@ function getTransactionStatus(transaction) {
     return 'PENDING';
   }
 
+  if (transaction.status === 'BORROWED') {
+    return 'BORROWED';
+  }
+
+  if (transaction.status === 'OVERDUE') {
+    return 'OVERDUE';
+  }
+
   if (transaction.returnDate) {
     return 'RETURNED';
   }
 
   if (!transaction.dueDate) {
-    return 'BORROWED';
+    return 'PENDING';
   }
 
   const dueDate = new Date(transaction.dueDate);
@@ -692,8 +700,9 @@ async function handleRequest(request, response) {
         bookId: payload.bookId,
         userId: currentUser.id,
         borrowDate,
-        dueDate: addDays(borrowDate, BORROW_WINDOW_DAYS),
+        dueDate: null,
         returnDate: null,
+        status: 'PENDING',
       };
 
       if (booksRepository.isSupabaseEnabled()) {
@@ -703,7 +712,7 @@ async function handleRequest(request, response) {
         );
         store.books = store.books.map((item) => (item.id === updatedBook.id ? updatedBook : item));
       } else {
-        const nextAvailableQuantity = book.availableQuantity - 1;
+        const nextAvailableQuantity = Math.max(0, book.availableQuantity - 1);
         book.availableQuantity = nextAvailableQuantity;
         book.updatedAt = new Date().toISOString();
       }
@@ -712,8 +721,38 @@ async function handleRequest(request, response) {
       writeStore(store);
 
       sendJson(response, 201, {
-        message: 'Book borrowed successfully.',
+        message: 'Borrow request submitted for approval.',
         transaction: serializeTransaction(nextTransaction, store),
+      });
+      return;
+    }
+
+    const approveMatch = pathname.match(/^\/api\/transactions\/([^/]+)\/approve$/);
+    if (approveMatch && method === 'POST') {
+      const store = await hydrateBooks(readStore());
+      const { currentUser } = requireUser(request, store, ['LIBRARIAN']);
+      const transaction = store.transactions.find((item) => item.id === approveMatch[1]);
+
+      if (!transaction) {
+        throw new AppError(404, 'Transaction not found.');
+      }
+
+      if (transaction.returnDate) {
+        throw new AppError(409, 'This request has already been closed.');
+      }
+
+      if (getTransactionStatus(transaction) !== 'PENDING') {
+        throw new AppError(409, 'Only pending borrow requests can be approved.');
+      }
+
+      transaction.status = 'BORROWED';
+      transaction.dueDate = addDays(transaction.borrowDate, BORROW_WINDOW_DAYS);
+
+      writeStore(store);
+
+      sendJson(response, 200, {
+        message: 'Borrow request approved.',
+        transaction: serializeTransaction(transaction, store),
       });
       return;
     }
@@ -734,6 +773,10 @@ async function handleRequest(request, response) {
 
       if (transaction.returnDate) {
         throw new AppError(409, 'This book has already been returned.');
+      }
+
+      if (getTransactionStatus(transaction) === 'PENDING') {
+        throw new AppError(409, 'Pending requests must be approved before returning.');
       }
 
       const book = ensureBookExists(store, transaction.bookId);
