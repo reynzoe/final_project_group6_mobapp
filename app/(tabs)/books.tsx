@@ -207,7 +207,9 @@ export default function BooksScreen() {
   }
 
   const borrowedBookIds = new Set(
-    transactions.filter((transaction) => transaction.status !== 'RETURNED').map((transaction) => transaction.bookId)
+    transactions
+      .filter((transaction) => transaction.userId === user.id && transaction.status !== 'RETURNED')
+      .map((transaction) => transaction.bookId)
   );
 
   return (

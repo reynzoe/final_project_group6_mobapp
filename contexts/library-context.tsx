@@ -35,6 +35,18 @@ type LibraryContextValue = {
 
 const LibraryContext = createContext<LibraryContextValue | undefined>(undefined);
 
+function normalizeBooksById(rawBooks: Book[]) {
+  const uniqueBooks = new Map<string, Book>();
+
+  rawBooks.forEach((book) => {
+    if (!uniqueBooks.has(book.id)) {
+      uniqueBooks.set(book.id, book);
+    }
+  });
+
+  return Array.from(uniqueBooks.values());
+}
+
 export function LibraryProvider({ children }: PropsWithChildren) {
   const { token, user, refreshUser } = useAuth();
   const [books, setBooks] = useState<Book[]>([]);
@@ -79,7 +91,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
         }
       );
 
-      setBooks(response.books);
+      setBooks(normalizeBooksById(response.books));
     } catch (requestError) {
       const message =
         requestError instanceof Error ? requestError.message : 'Unable to load the book catalogue.';
@@ -305,7 +317,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
         }
 
         setDashboard(dashboardResponse);
-        setBooks(booksResponse.books);
+        setBooks(normalizeBooksById(booksResponse.books));
         setTransactions(transactionsResponse.transactions);
         setUsers(usersResponse.users);
         setSearchQuery('');

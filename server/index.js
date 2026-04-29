@@ -66,9 +66,13 @@ function getLateFee(transaction) {
   return diffDays(endDate, dueDate) * LATE_FEE_PER_DAY;
 }
 
+function bookIncludesId(book, bookId) {
+  return book.id === bookId || book.copyIds?.includes(bookId);
+}
+
 function serializeBook(book, store) {
   const activeTransactions = store.transactions.filter(
-    (transaction) => transaction.bookId === book.id && !transaction.returnDate
+    (transaction) => bookIncludesId(book, transaction.bookId) && !transaction.returnDate
   );
   const overdueTransactions = activeTransactions.filter(
     (transaction) => getTransactionStatus(transaction) === 'OVERDUE'
@@ -97,7 +101,7 @@ function serializeUser(user, store) {
 }
 
 function serializeTransaction(transaction, store) {
-  const book = store.books.find((item) => item.id === transaction.bookId);
+  const book = store.books.find((item) => bookIncludesId(item, transaction.bookId));
   const user = store.users.find((item) => item.id === transaction.userId);
   const status = getTransactionStatus(transaction);
 
@@ -161,7 +165,10 @@ function getDashboardForUser(currentUser, store) {
 
   const popularBooks = Object.entries(
     visibleTransactions.reduce((grouped, transaction) => {
-      grouped[transaction.bookId] = (grouped[transaction.bookId] || 0) + 1;
+      const matchedBook = store.books.find((book) => bookIncludesId(book, transaction.bookId));
+      const normalizedBookId = matchedBook?.id ?? transaction.bookId;
+
+      grouped[normalizedBookId] = (grouped[normalizedBookId] || 0) + 1;
       return grouped;
     }, {})
   )
@@ -242,7 +249,7 @@ function assertUniqueEmail(store, email, ignoredUserId) {
 }
 
 function ensureBookExists(store, bookId) {
-  const book = store.books.find((item) => item.id === bookId);
+  const book = store.books.find((item) => bookIncludesId(item, bookId));
 
   if (!book) {
     throw new AppError(404, 'Book not found.');
@@ -418,7 +425,7 @@ async function handleRequest(request, response) {
       const payload = validateBookPayload(await readJsonBody(request));
       const book = ensureBookExists(store, bookMatch[1]);
       const activeLoans = store.transactions.filter(
-        (transaction) => transaction.bookId === book.id && !transaction.returnDate
+        (transaction) => bookIncludesId(book, transaction.bookId) && !transaction.returnDate
       ).length;
 
       if (payload.quantity < activeLoans) {
@@ -459,15 +466,15 @@ async function handleRequest(request, response) {
       const store = await hydrateBooks(readStore());
       requireUser(request, store, ['LIBRARIAN']);
       const bookId = bookMatch[1];
+      const book = ensureBookExists(store, bookId);
       const activeLoans = store.transactions.filter(
-        (transaction) => transaction.bookId === bookId && !transaction.returnDate
+        (transaction) => bookIncludesId(book, transaction.bookId) && !transaction.returnDate
       );
 
       if (activeLoans.length > 0) {
         throw new AppError(409, 'Books with active loans cannot be deleted.');
       }
 
-      const book = ensureBookExists(store, bookId);
       const nextBooks = store.books.filter((item) => item.id !== bookId);
 
       if (nextBooks.length === store.books.length) {
@@ -635,7 +642,7 @@ async function handleRequest(request, response) {
 
       const hasActiveLoan = store.transactions.some(
         (transaction) =>
-          transaction.bookId === payload.bookId &&
+          bookIncludesId(book, transaction.bookId) &&
           transaction.userId === currentUser.id &&
           !transaction.returnDate
       );
@@ -654,15 +661,14 @@ async function handleRequest(request, response) {
         returnDate: null,
       };
 
-      const nextAvailableQuantity = book.availableQuantity - 1;
-
       if (booksRepository.isSupabaseEnabled()) {
         const updatedBook = await booksRepository.updateBookAvailability(
           book.id,
-          nextAvailableQuantity
+          'borrow'
         );
         store.books = store.books.map((item) => (item.id === updatedBook.id ? updatedBook : item));
       } else {
+        const nextAvailableQuantity = book.availableQuantity - 1;
         book.availableQuantity = nextAvailableQuantity;
         book.updatedAt = new Date().toISOString();
       }
@@ -697,15 +703,15 @@ async function handleRequest(request, response) {
 
       const book = ensureBookExists(store, transaction.bookId);
       transaction.returnDate = new Date().toISOString();
-      const nextAvailableQuantity = Math.min(book.quantity, book.availableQuantity + 1);
 
       if (booksRepository.isSupabaseEnabled()) {
         const updatedBook = await booksRepository.updateBookAvailability(
           book.id,
-          nextAvailableQuantity
+          'return'
         );
         store.books = store.books.map((item) => (item.id === updatedBook.id ? updatedBook : item));
       } else {
+        const nextAvailableQuantity = Math.min(book.quantity, book.availableQuantity + 1);
         book.availableQuantity = nextAvailableQuantity;
         book.updatedAt = new Date().toISOString();
       }
