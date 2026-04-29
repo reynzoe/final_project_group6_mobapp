@@ -12,7 +12,11 @@ const moneyFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
 });
 
-export function formatDate(value: string) {
+export function formatDate(value: string | null, fallback = 'Pending approval') {
+  if (!value) {
+    return fallback;
+  }
+
   return dateFormatter.format(new Date(value));
 }
 
@@ -25,6 +29,10 @@ export function formatRole(role: Role) {
 }
 
 export function formatTransactionStatus(status: TransactionStatus) {
+  if (status === 'PENDING') {
+    return 'Borrowing being processed';
+  }
+
   if (status === 'BORROWED') {
     return 'Borrowed';
   }
