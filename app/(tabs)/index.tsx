@@ -1,6 +1,7 @@
-import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppCard } from '@/components/app-card';
+import { BookCover } from '@/components/book-cover';
 import { EmptyState } from '@/components/empty-state';
 import { PillBadge } from '@/components/pill-badge';
 import { ScreenShell } from '@/components/screen-shell';
@@ -36,7 +37,7 @@ function TransactionPreview({ transaction }: { transaction: Transaction }) {
 
 export default function DashboardScreen() {
   const { user } = useAuth();
-  const { dashboard, error, isLoading, reloadAll } = useLibrary();
+  const { books, dashboard, error, isLoading, reloadAll } = useLibrary();
 
   const refreshControl = (
     <RefreshControl
@@ -123,6 +124,63 @@ export default function DashboardScreen() {
         </AppCard>
       ) : null}
 
+      <View style={styles.welcomeBlock}>
+        <Text style={styles.greeting}>Hello {user.fullName.split(' ')[0]}</Text>
+        <View style={styles.quickStats}>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickValue}>{dashboard?.summary.overdueLoans ?? 0}</Text>
+            <Text style={styles.quickLabel}>Overdue</Text>
+          </View>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickValue}>{dashboard?.summary.activeLoans ?? 0}</Text>
+            <Text style={styles.quickLabel}>Borrowed</Text>
+          </View>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickValue}>{dashboard?.summary.availableCopies ?? 0}</Text>
+            <Text style={styles.quickLabel}>Ready</Text>
+          </View>
+          <View style={styles.quickStat}>
+            <Text style={styles.quickValue}>{formatCurrency(dashboard?.summary.outstandingFees ?? 0)}</Text>
+            <Text style={styles.quickLabel}>Fees due</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.shelfSection}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.shelfTitle}>New at the library</Text>
+          <PillBadge label={`${books.length} books`} tone="primary" />
+        </View>
+        {books.length ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.coverRail}>
+            {books.slice(0, 12).map((book) => (
+              <View key={book.id} style={styles.coverItem}>
+                <BookCover
+                  title={book.title}
+                  author={book.author}
+                  category={book.category}
+                  size="lg"
+                />
+                <Text style={styles.coverTitle} numberOfLines={2}>
+                  {book.title}
+                </Text>
+                <Text style={styles.coverMeta} numberOfLines={1}>
+                  {book.availableQuantity} available
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        ) : (
+          <EmptyState
+            title="No books loaded yet"
+            message="Imported Supabase titles will appear here as cover tiles."
+          />
+        )}
+      </View>
+
       <View style={styles.grid}>
         {statCards.map((item) => (
           <StatCard
@@ -207,6 +265,67 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
+  },
+  welcomeBlock: {
+    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
+    paddingBottom: spacing.lg,
+  },
+  greeting: {
+    color: palette.text,
+    fontFamily: typography.body,
+    fontSize: 20,
+  },
+  quickStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  quickStat: {
+    flex: 1,
+    gap: 2,
+  },
+  quickValue: {
+    color: palette.text,
+    fontFamily: typography.heading,
+    fontSize: 20,
+  },
+  quickLabel: {
+    color: palette.textMuted,
+    fontFamily: typography.body,
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  shelfSection: {
+    gap: spacing.md,
+  },
+  shelfTitle: {
+    color: palette.text,
+    fontFamily: typography.heading,
+    fontSize: 27,
+  },
+  coverRail: {
+    gap: spacing.md,
+    paddingRight: spacing.lg,
+  },
+  coverItem: {
+    width: 118,
+    gap: spacing.sm,
+  },
+  coverTitle: {
+    color: palette.text,
+    fontFamily: typography.body,
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 17,
+  },
+  coverMeta: {
+    color: palette.accent,
+    fontFamily: typography.body,
+    fontSize: 12,
+    fontWeight: '800',
   },
   errorCard: {
     backgroundColor: palette.dangerSoft,

@@ -14,8 +14,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
+import { BookCover } from '@/components/book-cover';
 import { AppInput } from '@/components/app-input';
-import { PillBadge } from '@/components/pill-badge';
 import { palette, radii, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { getApiBaseUrl } from '@/lib/api';
@@ -100,12 +100,18 @@ export default function LoginScreen() {
         behavior={Platform.select({ ios: 'padding', default: undefined })}>
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.hero}>
-            <PillBadge label="Expo + Node API" tone="warning" />
-            <Text style={styles.heroTitle}>Library Management System</Text>
-            <Text style={styles.heroCopy}>
-              Sign in as a librarian to manage the collection and user accounts, or register as a
-              student to search, borrow, and return books.
-            </Text>
+            <View style={styles.brandLockup}>
+              <Text style={styles.brand}>The Public Library</Text>
+              <Text style={styles.heroTitle}>Library Management System</Text>
+              <Text style={styles.heroCopy}>
+                Search the shelves, manage borrowed books, and keep availability clear for every reader.
+              </Text>
+            </View>
+            <View style={styles.coverStack}>
+              <BookCover title="Reading List" author="Public Library" category="New" size="md" />
+              <BookCover title="Borrowed Today" author="Library Desk" category="Ready" size="md" />
+              <BookCover title="Fresh Finds" author="Collection" category="Books" size="md" />
+            </View>
           </View>
 
           <AppCard>
@@ -224,22 +230,36 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
   },
   hero: {
-    backgroundColor: palette.primary,
-    borderRadius: 34,
-    padding: spacing.xl,
-    gap: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
+    paddingVertical: spacing.xl,
+    gap: spacing.lg,
+  },
+  brandLockup: {
+    gap: spacing.sm,
+  },
+  brand: {
+    color: palette.primary,
+    fontFamily: typography.body,
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'uppercase',
   },
   heroTitle: {
-    color: palette.white,
+    color: palette.text,
     fontFamily: typography.heading,
-    fontSize: 38,
-    lineHeight: 42,
+    fontSize: 40,
+    lineHeight: 43,
   },
   heroCopy: {
-    color: '#D6E7F3',
+    color: palette.textMuted,
     fontFamily: typography.body,
     fontSize: 15,
     lineHeight: 23,
+  },
+  coverStack: {
+    flexDirection: 'row',
+    gap: spacing.md,
   },
   modeSwitcher: {
     flexDirection: 'row',

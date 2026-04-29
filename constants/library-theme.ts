@@ -3,24 +3,24 @@ import { Platform } from 'react-native';
 import { Fonts } from '@/constants/theme';
 
 export const palette = {
-  background: '#F5EFE6',
-  backgroundAccent: '#E8DDCF',
-  surface: '#FFFDFC',
-  surfaceMuted: '#F0E7DA',
-  surfaceStrong: '#E1D1BE',
-  border: '#D9C8B4',
-  text: '#1D2A35',
-  textMuted: '#64707B',
-  primary: '#123B5D',
-  primaryMuted: '#D7E6F2',
-  accent: '#C56A2D',
-  accentSoft: '#F3DEC9',
-  success: '#2F7A5F',
-  successSoft: '#DDEFE8',
-  danger: '#A64238',
-  dangerSoft: '#F6E1DE',
-  warning: '#9B6C15',
-  warningSoft: '#F8E9C6',
+  background: '#F7F7F4',
+  backgroundAccent: '#ECEFED',
+  surface: '#FFFFFF',
+  surfaceMuted: '#F1F2EF',
+  surfaceStrong: '#E4E7E3',
+  border: '#D9DDD7',
+  text: '#171B1F',
+  textMuted: '#626A70',
+  primary: '#111827',
+  primaryMuted: '#E8ECF7',
+  accent: '#007F9F',
+  accentSoft: '#DFF5F8',
+  success: '#2C7A4B',
+  successSoft: '#E3F2E8',
+  danger: '#B33A3A',
+  dangerSoft: '#F8E5E5',
+  warning: '#9A6A13',
+  warningSoft: '#F8EBC9',
   white: '#FFFFFF',
 };
 
@@ -34,9 +34,9 @@ export const spacing = {
 };
 
 export const radii = {
-  sm: 10,
-  md: 16,
-  lg: 22,
+  sm: 6,
+  md: 8,
+  lg: 8,
   pill: 999,
 };
 
@@ -49,17 +49,17 @@ export const typography = {
 export const shadow = Platform.select({
   ios: {
     shadowColor: '#16212A',
-    shadowOpacity: 0.12,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
   android: {
-    elevation: 6,
+    elevation: 2,
   },
   default: {
     shadowColor: '#16212A',
-    shadowOpacity: 0.1,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
   },
 });

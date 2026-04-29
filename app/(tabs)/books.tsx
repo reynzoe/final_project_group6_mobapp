@@ -9,6 +9,7 @@ import { useDeferredValue, useEffect, useRef, useState } from 'react';
 
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
+import { BookCover } from '@/components/book-cover';
 import { AppInput } from '@/components/app-input';
 import { EmptyState } from '@/components/empty-state';
 import { ModalSheet } from '@/components/modal-sheet';
@@ -261,27 +262,37 @@ export default function BooksScreen() {
 
             return (
               <AppCard key={book.id}>
-                <View style={styles.bookHeader}>
-                  <View style={styles.bookCopy}>
-                    <Text style={styles.bookTitle}>{book.title}</Text>
-                    <Text style={styles.bookMeta}>{book.author}</Text>
-                  </View>
-                  <PillBadge
-                    label={book.availableQuantity > 0 ? `${book.availableQuantity} available` : 'Checked out'}
-                    tone={book.availableQuantity > 0 ? 'success' : 'danger'}
+                <View style={styles.bookRow}>
+                  <BookCover
+                    title={book.title}
+                    author={book.author}
+                    category={book.category}
+                    size="md"
                   />
-                </View>
+                  <View style={styles.bookDetails}>
+                    <View style={styles.bookHeader}>
+                      <View style={styles.bookCopy}>
+                        <Text style={styles.bookTitle}>{book.title}</Text>
+                        <Text style={styles.bookMeta}>{book.author}</Text>
+                      </View>
+                      <PillBadge
+                        label={book.availableQuantity > 0 ? `${book.availableQuantity} available` : 'Checked out'}
+                        tone={book.availableQuantity > 0 ? 'success' : 'danger'}
+                      />
+                    </View>
 
-                <View style={styles.metaRow}>
-                  <PillBadge label={book.category} tone="primary" />
-                  <Text style={styles.inventoryText}>
-                    {book.quantity} total • {book.activeLoanCount} active loan
-                    {book.activeLoanCount === 1 ? '' : 's'}
-                  </Text>
+                    <View style={styles.metaRow}>
+                      <PillBadge label={book.category} tone="primary" />
+                      <Text style={styles.inventoryText}>
+                        {book.quantity} total • {book.activeLoanCount} active loan
+                        {book.activeLoanCount === 1 ? '' : 's'}
+                      </Text>
+                    </View>
+                    <Text style={styles.locationText}>
+                      Location: Cabinet {book.cabinet} • Rack {book.rack} • Row {book.row}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.locationText}>
-                  Location: Cabinet {book.cabinet} • Rack {book.rack} • Row {book.row}
-                </Text>
 
                 {user.role === 'LIBRARIAN' ? (
                   <View style={styles.actionsRow}>
@@ -432,6 +443,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
+  bookRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'flex-start',
+  },
+  bookDetails: {
+    flex: 1,
+    gap: spacing.md,
+  },
   bookCopy: {
     flex: 1,
     gap: spacing.xs,
@@ -439,7 +459,8 @@ const styles = StyleSheet.create({
   bookTitle: {
     color: palette.text,
     fontFamily: typography.heading,
-    fontSize: 25,
+    fontSize: 22,
+    lineHeight: 25,
   },
   bookMeta: {
     color: palette.textMuted,
