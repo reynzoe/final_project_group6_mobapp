@@ -70,6 +70,9 @@ function validateBookPayload(payload) {
     title: requireText('Title', payload.title),
     author: requireText('Author', payload.author),
     category: requireText('Category', payload.category),
+    cabinet: requireText('Cabinet', payload.cabinet, { min: 1, max: 40 }),
+    rack: requireText('Rack', payload.rack, { min: 1, max: 40 }),
+    row: requireText('Row', payload.row, { min: 1, max: 40 }),
     quantity: validateQuantity(payload.quantity),
   };
 }

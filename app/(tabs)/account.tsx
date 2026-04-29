@@ -90,6 +90,10 @@ export default function AccountScreen() {
   }
 
   async function handleProfileSave() {
+    if (!user) {
+      return;
+    }
+
     const nextErrors = validateUserForm(profileForm, false);
     setProfileErrors(nextErrors);
 

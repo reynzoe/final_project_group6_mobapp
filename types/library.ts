@@ -20,6 +20,9 @@ export type Book = {
   title: string;
   author: string;
   category: string;
+  cabinet: string;
+  rack: string;
+  row: string;
   quantity: number;
   availableQuantity: number;
   activeLoanCount: number;
@@ -81,6 +84,9 @@ export type BookPayload = {
   title: string;
   author: string;
   category: string;
+  cabinet: string;
+  rack: string;
+  row: string;
   quantity: number;
 };
 

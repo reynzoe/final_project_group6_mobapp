@@ -1,5 +1,9 @@
 const http = require('node:http');
 
+const { loadEnvFile } = require('./lib/env');
+
+loadEnvFile();
+
 const {
   createPasswordRecord,
   createSession,
@@ -8,6 +12,7 @@ const {
   sanitizeUser,
   verifyPassword,
 } = require('./lib/auth');
+const booksRepository = require('./lib/books');
 const { BORROW_WINDOW_DAYS, createId, readStore, writeStore } = require('./lib/data');
 const {
   AppError,
@@ -103,13 +108,28 @@ function serializeTransaction(transaction, store) {
       status === 'OVERDUE' ? diffDays(new Date(), new Date(transaction.dueDate)) : 0,
     lateFee: Number(getLateFee(transaction).toFixed(2)),
     book: {
-      id: book.id,
-      title: book.title,
-      author: book.author,
-      category: book.category,
+      id: book?.id ?? transaction.bookId,
+      title: book?.title ?? 'Unknown title',
+      author: book?.author ?? 'Unknown author',
+      category: book?.category ?? 'Uncategorized',
     },
-    user: sanitizeUser(user),
+    user: user
+      ? sanitizeUser(user)
+      : {
+          id: transaction.userId,
+          fullName: 'Unknown user',
+          email: '',
+          role: 'STUDENT',
+        },
   };
+}
+
+async function hydrateBooks(store) {
+  if (booksRepository.isSupabaseEnabled()) {
+    store.books = await booksRepository.listBooks();
+  }
+
+  return store;
 }
 
 function getDashboardForUser(currentUser, store) {
@@ -254,6 +274,7 @@ async function handleRequest(request, response) {
     if (method === 'GET' && pathname === '/api/health') {
       sendJson(response, 200, {
         message: 'Library API is running.',
+        booksSource: booksRepository.isSupabaseEnabled() ? 'supabase' : 'local-json',
       });
       return;
     }
@@ -329,14 +350,14 @@ async function handleRequest(request, response) {
     }
 
     if (method === 'GET' && pathname === '/api/dashboard') {
-      const store = readStore();
+      const store = await hydrateBooks(readStore());
       const { currentUser } = requireUser(request, store);
       sendJson(response, 200, getDashboardForUser(currentUser, store));
       return;
     }
 
     if (method === 'GET' && pathname === '/api/books') {
-      const store = readStore();
+      const store = await hydrateBooks(readStore());
       requireUser(request, store);
       const search = url.searchParams.get('search')?.trim().toLowerCase() || '';
       const filteredBooks = store.books
@@ -360,21 +381,28 @@ async function handleRequest(request, response) {
     }
 
     if (method === 'POST' && pathname === '/api/books') {
-      const store = readStore();
+      const store = await hydrateBooks(readStore());
       requireUser(request, store, ['LIBRARIAN']);
       const payload = validateBookPayload(await readJsonBody(request));
       const createdAt = new Date().toISOString();
 
-      const nextBook = {
-        id: createId('bk'),
-        ...payload,
-        availableQuantity: payload.quantity,
-        createdAt,
-        updatedAt: createdAt,
-      };
+      let nextBook;
 
-      store.books.push(nextBook);
-      writeStore(store);
+      if (booksRepository.isSupabaseEnabled()) {
+        nextBook = await booksRepository.createBook(payload);
+        store.books.push(nextBook);
+      } else {
+        nextBook = {
+          id: createId('bk'),
+          ...payload,
+          availableQuantity: payload.quantity,
+          createdAt,
+          updatedAt: createdAt,
+        };
+
+        store.books.push(nextBook);
+        writeStore(store);
+      }
 
       sendJson(response, 201, {
         message: 'Book created successfully.',
@@ -385,7 +413,7 @@ async function handleRequest(request, response) {
 
     const bookMatch = pathname.match(/^\/api\/books\/([^/]+)$/);
     if (bookMatch && method === 'PUT') {
-      const store = readStore();
+      const store = await hydrateBooks(readStore());
       requireUser(request, store, ['LIBRARIAN']);
       const payload = validateBookPayload(await readJsonBody(request));
       const book = ensureBookExists(store, bookMatch[1]);
@@ -400,24 +428,35 @@ async function handleRequest(request, response) {
         );
       }
 
-      book.title = payload.title;
-      book.author = payload.author;
-      book.category = payload.category;
-      book.quantity = payload.quantity;
-      book.availableQuantity = payload.quantity - activeLoans;
-      book.updatedAt = new Date().toISOString();
+      let updatedBook;
 
-      writeStore(store);
+      if (booksRepository.isSupabaseEnabled()) {
+        updatedBook = await booksRepository.updateBook(book.id, payload, activeLoans);
+        store.books = store.books.map((item) => (item.id === updatedBook.id ? updatedBook : item));
+      } else {
+        book.title = payload.title;
+        book.author = payload.author;
+        book.category = payload.category;
+        book.cabinet = payload.cabinet;
+        book.rack = payload.rack;
+        book.row = payload.row;
+        book.quantity = payload.quantity;
+        book.availableQuantity = payload.quantity - activeLoans;
+        book.updatedAt = new Date().toISOString();
+        updatedBook = book;
+
+        writeStore(store);
+      }
 
       sendJson(response, 200, {
         message: 'Book updated successfully.',
-        book: serializeBook(book, store),
+        book: serializeBook(updatedBook, store),
       });
       return;
     }
 
     if (bookMatch && method === 'DELETE') {
-      const store = readStore();
+      const store = await hydrateBooks(readStore());
       requireUser(request, store, ['LIBRARIAN']);
       const bookId = bookMatch[1];
       const activeLoans = store.transactions.filter(
@@ -428,14 +467,19 @@ async function handleRequest(request, response) {
         throw new AppError(409, 'Books with active loans cannot be deleted.');
       }
 
-      const nextBooks = store.books.filter((book) => book.id !== bookId);
+      const book = ensureBookExists(store, bookId);
+      const nextBooks = store.books.filter((item) => item.id !== bookId);
 
       if (nextBooks.length === store.books.length) {
         throw new AppError(404, 'Book not found.');
       }
 
-      store.books = nextBooks;
-      writeStore(store);
+      if (booksRepository.isSupabaseEnabled()) {
+        await booksRepository.deleteBook(book.id);
+      } else {
+        store.books = nextBooks;
+        writeStore(store);
+      }
 
       sendJson(response, 200, {
         message: 'Book deleted successfully.',
@@ -563,7 +607,7 @@ async function handleRequest(request, response) {
     }
 
     if (method === 'GET' && pathname === '/api/transactions') {
-      const store = readStore();
+      const store = await hydrateBooks(readStore());
       const { currentUser } = requireUser(request, store);
       const visibleTransactions =
         currentUser.role === 'LIBRARIAN'
@@ -580,7 +624,7 @@ async function handleRequest(request, response) {
     }
 
     if (method === 'POST' && pathname === '/api/transactions/borrow') {
-      const store = readStore();
+      const store = await hydrateBooks(readStore());
       const { currentUser } = requireUser(request, store);
       const payload = validateBorrowPayload(await readJsonBody(request));
       const book = ensureBookExists(store, payload.bookId);
@@ -610,8 +654,19 @@ async function handleRequest(request, response) {
         returnDate: null,
       };
 
-      book.availableQuantity -= 1;
-      book.updatedAt = new Date().toISOString();
+      const nextAvailableQuantity = book.availableQuantity - 1;
+
+      if (booksRepository.isSupabaseEnabled()) {
+        const updatedBook = await booksRepository.updateBookAvailability(
+          book.id,
+          nextAvailableQuantity
+        );
+        store.books = store.books.map((item) => (item.id === updatedBook.id ? updatedBook : item));
+      } else {
+        book.availableQuantity = nextAvailableQuantity;
+        book.updatedAt = new Date().toISOString();
+      }
+
       store.transactions.push(nextTransaction);
       writeStore(store);
 
@@ -624,7 +679,7 @@ async function handleRequest(request, response) {
 
     const returnMatch = pathname.match(/^\/api\/transactions\/([^/]+)\/return$/);
     if (returnMatch && method === 'POST') {
-      const store = readStore();
+      const store = await hydrateBooks(readStore());
       const { currentUser } = requireUser(request, store);
       const transaction = store.transactions.find((item) => item.id === returnMatch[1]);
 
@@ -642,8 +697,18 @@ async function handleRequest(request, response) {
 
       const book = ensureBookExists(store, transaction.bookId);
       transaction.returnDate = new Date().toISOString();
-      book.availableQuantity = Math.min(book.quantity, book.availableQuantity + 1);
-      book.updatedAt = new Date().toISOString();
+      const nextAvailableQuantity = Math.min(book.quantity, book.availableQuantity + 1);
+
+      if (booksRepository.isSupabaseEnabled()) {
+        const updatedBook = await booksRepository.updateBookAvailability(
+          book.id,
+          nextAvailableQuantity
+        );
+        store.books = store.books.map((item) => (item.id === updatedBook.id ? updatedBook : item));
+      } else {
+        book.availableQuantity = nextAvailableQuantity;
+        book.updatedAt = new Date().toISOString();
+      }
 
       writeStore(store);
 

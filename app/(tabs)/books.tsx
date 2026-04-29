@@ -24,6 +24,9 @@ const emptyBookForm = {
   title: '',
   author: '',
   category: '',
+  cabinet: '',
+  rack: '',
+  row: '',
   quantity: '1',
 };
 
@@ -104,6 +107,9 @@ export default function BooksScreen() {
       title: book.title,
       author: book.author,
       category: book.category,
+      cabinet: book.cabinet,
+      rack: book.rack,
+      row: book.row,
       quantity: String(book.quantity),
     });
     setFormErrors({});
@@ -115,6 +121,9 @@ export default function BooksScreen() {
       title: validateRequiredText('Title', form.title),
       author: validateRequiredText('Author', form.author),
       category: validateRequiredText('Category', form.category),
+      cabinet: validateRequiredText('Cabinet', form.cabinet),
+      rack: validateRequiredText('Rack', form.rack),
+      row: validateRequiredText('Row', form.row),
       quantity: validateQuantity(form.quantity),
     };
 
@@ -131,6 +140,9 @@ export default function BooksScreen() {
       title: form.title.trim(),
       author: form.author.trim(),
       category: form.category.trim(),
+      cabinet: form.cabinet.trim(),
+      rack: form.rack.trim(),
+      row: form.row.trim(),
       quantity: Number(form.quantity),
     };
 
@@ -265,6 +277,9 @@ export default function BooksScreen() {
                     {book.activeLoanCount === 1 ? '' : 's'}
                   </Text>
                 </View>
+                <Text style={styles.locationText}>
+                  Location: Cabinet {book.cabinet} • Rack {book.rack} • Row {book.row}
+                </Text>
 
                 {user.role === 'LIBRARIAN' ? (
                   <View style={styles.actionsRow}>
@@ -356,6 +371,27 @@ export default function BooksScreen() {
           error={formErrors.category}
         />
         <AppInput
+          label="Cabinet"
+          value={form.cabinet}
+          onChangeText={(value) => setForm((current) => ({ ...current, cabinet: value }))}
+          placeholder="Cabinet number"
+          error={formErrors.cabinet}
+        />
+        <AppInput
+          label="Rack"
+          value={form.rack}
+          onChangeText={(value) => setForm((current) => ({ ...current, rack: value }))}
+          placeholder="Rack number"
+          error={formErrors.rack}
+        />
+        <AppInput
+          label="Row"
+          value={form.row}
+          onChangeText={(value) => setForm((current) => ({ ...current, row: value }))}
+          placeholder="Row number"
+          error={formErrors.row}
+        />
+        <AppInput
           label="Quantity"
           value={form.quantity}
           onChangeText={(value) => setForm((current) => ({ ...current, quantity: value }))}
@@ -417,6 +453,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   inventoryText: {
+    color: palette.textMuted,
+    fontFamily: typography.body,
+    fontSize: 13,
+  },
+  locationText: {
     color: palette.textMuted,
     fontFamily: typography.body,
     fontSize: 13,

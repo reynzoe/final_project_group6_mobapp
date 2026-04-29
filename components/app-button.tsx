@@ -48,17 +48,21 @@ export function AppButton({
   return (
     <Pressable
       disabled={disabled || loading}
-      style={({ pressed }) => [
-        styles.button,
-        compact && styles.compact,
-        {
-          backgroundColor: currentVariant.backgroundColor,
-          borderColor: currentVariant.borderColor,
-        },
-        pressed && !(disabled || loading) && styles.pressed,
-        (disabled || loading) && styles.disabled,
-        style,
-      ]}
+      style={(state) => {
+        const { pressed } = state;
+
+        return [
+          styles.button,
+          compact && styles.compact,
+          {
+            backgroundColor: currentVariant.backgroundColor,
+            borderColor: currentVariant.borderColor,
+          },
+          pressed && !(disabled || loading) && styles.pressed,
+          (disabled || loading) && styles.disabled,
+          typeof style === 'function' ? style(state) : style,
+        ];
+      }}
       {...props}>
       {loading ? (
         <ActivityIndicator color={currentVariant.color} />

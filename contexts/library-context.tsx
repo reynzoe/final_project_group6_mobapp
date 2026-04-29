@@ -283,6 +283,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
       return;
     }
 
+    const currentUser = user;
     let isCancelled = false;
 
     async function bootstrap() {
@@ -294,7 +295,7 @@ export function LibraryProvider({ children }: PropsWithChildren) {
           apiRequest<DashboardData>('/dashboard', { token }),
           apiRequest<{ books: Book[] }>('/books', { token }),
           apiRequest<{ transactions: Transaction[] }>('/transactions', { token }),
-          user.role === 'LIBRARIAN'
+          currentUser.role === 'LIBRARIAN'
             ? apiRequest<{ users: LibraryUser[] }>('/users', { token })
             : Promise.resolve({ users: [] }),
         ]);
