@@ -27,6 +27,7 @@ export type Book = {
   availableQuantity: number;
   activeLoanCount: number;
   overdueLoanCount: number;
+  coverUrl?: string;
   createdAt: string;
   updatedAt: string;
 };

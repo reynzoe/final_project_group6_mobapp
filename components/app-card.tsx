@@ -11,7 +11,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: palette.border,
+    borderColor: '#ECEFEB',
     padding: spacing.lg,
     gap: spacing.md,
     ...shadow,

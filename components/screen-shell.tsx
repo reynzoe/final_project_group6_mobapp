@@ -24,9 +24,9 @@ export function ScreenShell({
         style={styles.scroll}
         contentContainerStyle={styles.content}
         refreshControl={refreshControl as never}>
-        <View style={styles.hero}>
+        <View style={styles.header}>
           <View style={styles.heroCopy}>
-            <Text style={styles.eyebrow}>Library OS</Text>
+            <Text style={styles.eyebrow}>The Public Library</Text>
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
@@ -51,31 +51,30 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xxl,
     gap: spacing.lg,
   },
-  hero: {
+  header: {
     marginTop: spacing.md,
-    backgroundColor: palette.primary,
-    borderRadius: 30,
-    padding: spacing.xl,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: palette.border,
+    paddingBottom: spacing.lg,
     gap: spacing.lg,
   },
   heroCopy: {
     gap: spacing.sm,
   },
   eyebrow: {
-    color: '#C8DCEC',
+    color: palette.primary,
     fontFamily: typography.body,
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 1.1,
+    fontSize: 12,
+    fontWeight: '900',
     textTransform: 'uppercase',
   },
   title: {
-    color: palette.white,
+    color: palette.text,
     fontFamily: typography.heading,
-    fontSize: 34,
+    fontSize: 32,
   },
   subtitle: {
-    color: '#DBE9F5',
+    color: palette.textMuted,
     fontFamily: typography.body,
     fontSize: 15,
     lineHeight: 22,
