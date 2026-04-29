@@ -47,11 +47,19 @@ function diffDays(laterDate, earlierDate) {
 }
 
 function getTransactionStatus(transaction) {
-  const dueDate = new Date(transaction.dueDate);
+  if (transaction.status === 'PENDING') {
+    return 'PENDING';
+  }
 
   if (transaction.returnDate) {
     return 'RETURNED';
   }
+
+  if (!transaction.dueDate) {
+    return 'BORROWED';
+  }
+
+  const dueDate = new Date(transaction.dueDate);
 
   if (dueDate.getTime() < Date.now()) {
     return 'OVERDUE';
@@ -61,6 +69,10 @@ function getTransactionStatus(transaction) {
 }
 
 function getLateFee(transaction) {
+  if (!transaction.dueDate) {
+    return 0;
+  }
+
   const endDate = transaction.returnDate ? new Date(transaction.returnDate) : new Date();
   const dueDate = new Date(transaction.dueDate);
   return diffDays(endDate, dueDate) * LATE_FEE_PER_DAY;
@@ -71,9 +83,14 @@ function bookIncludesId(book, bookId) {
 }
 
 function serializeBook(book, store) {
-  const activeTransactions = store.transactions.filter(
-    (transaction) => bookIncludesId(book, transaction.bookId) && !transaction.returnDate
-  );
+  const activeTransactions = store.transactions.filter((transaction) => {
+    if (!bookIncludesId(book, transaction.bookId)) {
+      return false;
+    }
+
+    const status = getTransactionStatus(transaction);
+    return status === 'BORROWED' || status === 'OVERDUE';
+  });
   const overdueTransactions = activeTransactions.filter(
     (transaction) => getTransactionStatus(transaction) === 'OVERDUE'
   );
@@ -87,7 +104,10 @@ function serializeBook(book, store) {
 
 function serializeUser(user, store) {
   const userTransactions = store.transactions.filter((transaction) => transaction.userId === user.id);
-  const activeLoanCount = userTransactions.filter((transaction) => !transaction.returnDate).length;
+  const activeLoanCount = userTransactions.filter((transaction) => {
+    const status = getTransactionStatus(transaction);
+    return status === 'BORROWED' || status === 'OVERDUE';
+  }).length;
   const outstandingLateFees = userTransactions
     .filter((transaction) => getTransactionStatus(transaction) === 'OVERDUE')
     .reduce((sum, transaction) => sum + getLateFee(transaction), 0);
@@ -109,7 +129,9 @@ function serializeTransaction(transaction, store) {
     ...transaction,
     status,
     daysOverdue:
-      status === 'OVERDUE' ? diffDays(new Date(), new Date(transaction.dueDate)) : 0,
+      status === 'OVERDUE' && transaction.dueDate
+        ? diffDays(new Date(), new Date(transaction.dueDate))
+        : 0,
     lateFee: Number(getLateFee(transaction).toFixed(2)),
     book: {
       id: book?.id ?? transaction.bookId,
@@ -147,7 +169,10 @@ function getDashboardForUser(currentUser, store) {
       ? store.books
       : store.books;
 
-  const activeTransactions = visibleTransactions.filter((transaction) => !transaction.returnDate);
+  const activeTransactions = visibleTransactions.filter((transaction) => {
+    const status = getTransactionStatus(transaction);
+    return status === 'BORROWED' || status === 'OVERDUE';
+  });
   const overdueTransactions = activeTransactions.filter(
     (transaction) => getTransactionStatus(transaction) === 'OVERDUE'
   );
@@ -424,9 +449,14 @@ async function handleRequest(request, response) {
       requireUser(request, store, ['LIBRARIAN']);
       const payload = validateBookPayload(await readJsonBody(request));
       const book = ensureBookExists(store, bookMatch[1]);
-      const activeLoans = store.transactions.filter(
-        (transaction) => bookIncludesId(book, transaction.bookId) && !transaction.returnDate
-      ).length;
+      const activeLoans = store.transactions.filter((transaction) => {
+        if (!bookIncludesId(book, transaction.bookId)) {
+          return false;
+        }
+
+        const status = getTransactionStatus(transaction);
+        return status === 'BORROWED' || status === 'OVERDUE';
+      }).length;
 
       if (payload.quantity < activeLoans) {
         throw new AppError(
@@ -467,12 +497,17 @@ async function handleRequest(request, response) {
       requireUser(request, store, ['LIBRARIAN']);
       const bookId = bookMatch[1];
       const book = ensureBookExists(store, bookId);
-      const activeLoans = store.transactions.filter(
-        (transaction) => bookIncludesId(book, transaction.bookId) && !transaction.returnDate
-      );
+      const activeLoans = store.transactions.filter((transaction) => {
+        if (!bookIncludesId(book, transaction.bookId)) {
+          return false;
+        }
+
+        const status = getTransactionStatus(transaction);
+        return status === 'PENDING' || status === 'BORROWED' || status === 'OVERDUE';
+      });
 
       if (activeLoans.length > 0) {
-        throw new AppError(409, 'Books with active loans cannot be deleted.');
+        throw new AppError(409, 'Books with active or pending loans cannot be deleted.');
       }
 
       const nextBooks = store.books.filter((item) => item.id !== bookId);

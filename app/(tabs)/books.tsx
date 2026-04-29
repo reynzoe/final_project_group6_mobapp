@@ -9,8 +9,8 @@ import { useDeferredValue, useEffect, useRef, useState } from 'react';
 
 import { AppButton } from '@/components/app-button';
 import { AppCard } from '@/components/app-card';
-import { BookCover } from '@/components/book-cover';
 import { AppInput } from '@/components/app-input';
+import { BookCover } from '@/components/book-cover';
 import { EmptyState } from '@/components/empty-state';
 import { ModalSheet } from '@/components/modal-sheet';
 import { PillBadge } from '@/components/pill-badge';
@@ -263,13 +263,15 @@ export default function BooksScreen() {
             return (
               <AppCard key={book.id}>
                 <View style={styles.bookRow}>
-                  <BookCover
-                    title={book.title}
-                    author={book.author}
-                    category={book.category}
-                    size="md"
-                  />
-                  <View style={styles.bookDetails}>
+                  <View style={styles.coverWrapper}>
+                    <BookCover
+                      title={book.title}
+                      author={book.author}
+                      category={book.category}
+                      size="md"
+                    />
+                  </View>
+                  <View style={styles.bookContent}>
                     <View style={styles.bookHeader}>
                       <View style={styles.bookCopy}>
                         <Text style={styles.bookTitle}>{book.title}</Text>
@@ -291,39 +293,39 @@ export default function BooksScreen() {
                     <Text style={styles.locationText}>
                       Location: Cabinet {book.cabinet} • Rack {book.rack} • Row {book.row}
                     </Text>
+
+                    {user.role === 'LIBRARIAN' ? (
+                      <View style={styles.actionsRow}>
+                        <AppButton
+                          label="Edit"
+                          variant="secondary"
+                          compact
+                          style={styles.actionButton}
+                          onPress={() => openEditModal(book)}
+                        />
+                        <AppButton
+                          label="Delete"
+                          variant="danger"
+                          compact
+                          style={styles.actionButton}
+                          onPress={() => confirmDelete(book)}
+                        />
+                      </View>
+                    ) : (
+                      <AppButton
+                        label={
+                          alreadyBorrowed
+                            ? 'Already Borrowed'
+                            : unavailable
+                              ? 'Unavailable'
+                              : 'Borrow Book'
+                        }
+                        disabled={alreadyBorrowed || unavailable || isMutating}
+                        onPress={() => confirmBorrow(book)}
+                      />
+                    )}
                   </View>
                 </View>
-
-                {user.role === 'LIBRARIAN' ? (
-                  <View style={styles.actionsRow}>
-                    <AppButton
-                      label="Edit"
-                      variant="secondary"
-                      compact
-                      style={styles.actionButton}
-                      onPress={() => openEditModal(book)}
-                    />
-                    <AppButton
-                      label="Delete"
-                      variant="danger"
-                      compact
-                      style={styles.actionButton}
-                      onPress={() => confirmDelete(book)}
-                    />
-                  </View>
-                ) : (
-                  <AppButton
-                    label={
-                      alreadyBorrowed
-                        ? 'Already Borrowed'
-                        : unavailable
-                          ? 'Unavailable'
-                          : 'Borrow Book'
-                    }
-                    disabled={alreadyBorrowed || unavailable || isMutating}
-                    onPress={() => confirmBorrow(book)}
-                  />
-                )}
               </AppCard>
             );
           })
@@ -446,11 +448,13 @@ const styles = StyleSheet.create({
   bookRow: {
     flexDirection: 'row',
     gap: spacing.md,
-    alignItems: 'flex-start',
   },
-  bookDetails: {
+  coverWrapper: {
+    paddingTop: 2,
+  },
+  bookContent: {
     flex: 1,
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   bookCopy: {
     flex: 1,
@@ -460,13 +464,13 @@ const styles = StyleSheet.create({
     color: palette.text,
     fontFamily: typography.heading,
     fontSize: 22,
-    lineHeight: 25,
+    lineHeight: 26,
   },
   bookMeta: {
     color: palette.textMuted,
     fontFamily: typography.body,
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 14,
+    lineHeight: 19,
   },
   metaRow: {
     flexDirection: 'row',
