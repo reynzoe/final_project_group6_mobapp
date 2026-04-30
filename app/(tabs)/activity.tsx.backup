@@ -18,21 +18,13 @@ function TransactionCard({
   onReturn,
   busy,
   showUser,
-  isAdmin,
-  onApproveReturn,
 }: {
   transaction: Transaction;
   canReturn: boolean;
   onReturn: (transaction: Transaction) => void;
   busy: boolean;
   showUser: boolean;
-  isAdmin: boolean;
-  onApproveReturn: (transaction: Transaction) => void;
 }) {
-  const isPendingReturn = transaction.status === 'PENDING_RETURN';
-  const buttonLabel = isPendingReturn && isAdmin ? 'Process Return' : 'Request Return';
-  const onButtonPress = isPendingReturn && isAdmin ? onApproveReturn : onReturn;
-
   return (
     <AppCard>
       <View style={styles.transactionHeader}>
@@ -47,9 +39,7 @@ function TransactionCard({
               ? 'danger'
               : transaction.status === 'BORROWED'
                 ? 'warning'
-                : transaction.status === 'PENDING_RETURN'
-                  ? 'info'
-                  : 'success'
+                : 'success'
           }
         />
       </View>
@@ -80,19 +70,12 @@ function TransactionCard({
         </View>
       ) : null}
 
-      {canReturn && !isPendingReturn ? (
+      {canReturn ? (
         <AppButton
-          label={buttonLabel}
+          label="Process Return"
           compact
           loading={busy}
-          onPress={() => onButtonPress(transaction)}
-        />
-      ) : isPendingReturn && isAdmin ? (
-        <AppButton
-          label={buttonLabel}
-          compact
-          loading={busy}
-          onPress={() => onButtonPress(transaction)}
+          onPress={() => onReturn(transaction)}
         />
       ) : null}
     </AppCard>
@@ -101,62 +84,32 @@ function TransactionCard({
 
 export default function ActivityScreen() {
   const { user } = useAuth();
-  const { transactions, error, isLoading, isMutating, requestBookReturn, approveBookReturn, reloadAll } =
-    useLibrary();
+  const { transactions, error, isLoading, isMutating, returnBook, reloadAll } = useLibrary();
 
   if (!user) {
     return null;
   }
 
-  const isAdmin = user.role === 'LIBRARIAN';
   const activeCount = transactions.filter((transaction) => transaction.status !== 'RETURNED').length;
   const overdueCount = transactions.filter((transaction) => transaction.status === 'OVERDUE').length;
   const returnedCount = transactions.filter((transaction) => transaction.status === 'RETURNED').length;
   const outstandingFees = transactions.reduce((sum, transaction) => sum + transaction.lateFee, 0);
 
   function confirmReturn(transaction: Transaction) {
-    const isPendingReturn = transaction.status === 'PENDING_RETURN';
-    const actionText = isPendingReturn ? 'Process Return' : 'Request Return';
-    const message = isPendingReturn
-      ? `Mark "${transaction.book.title}" as returned?`
-      : `Request to return "${transaction.book.title}"? This requires librarian approval.`;
-
-    Alert.alert('Return book', message, [
+    Alert.alert('Return book', `Mark "${transaction.book.title}" as returned?`, [
       {
         text: 'Cancel',
         style: 'cancel',
       },
       {
-        text: actionText,
+        text: 'Return',
         onPress: () => {
           void (async () => {
             try {
-              await requestBookReturn(transaction.id);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : 'Unable to request return.';
-              Alert.alert('Return request failed', message);
-            }
-          })();
-        },
-      },
-    ]);
-  }
-
-  function confirmApproveReturn(transaction: Transaction) {
-    Alert.alert('Process Return', `Mark "${transaction.book.title}" as returned?`, [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Approve',
-        onPress: () => {
-          void (async () => {
-            try {
-              await approveBookReturn(transaction.id);
+              await returnBook(transaction.id);
             } catch (error) {
               const message = error instanceof Error ? error.message : 'Unable to process return.';
-              Alert.alert('Return approval failed', message);
+              Alert.alert('Return failed', message);
             }
           })();
         },
@@ -166,9 +119,9 @@ export default function ActivityScreen() {
 
   return (
     <ScreenShell
-      title={isAdmin ? 'Circulation Desk' : 'Borrowing History'}
+      title={user.role === 'LIBRARIAN' ? 'Circulation Desk' : 'Borrowing History'}
       subtitle={
-        isAdmin
+        user.role === 'LIBRARIAN'
           ? 'Monitor current loans, process returns, and keep overdue items moving.'
           : 'Review your borrowing history, due dates, returns, and any late fees.'
       }
@@ -202,10 +155,8 @@ export default function ActivityScreen() {
             transaction={transaction}
             canReturn={transaction.status !== 'RETURNED'}
             onReturn={confirmReturn}
-            onApproveReturn={confirmApproveReturn}
             busy={isMutating}
-            showUser={isAdmin}
-            isAdmin={isAdmin}
+            showUser={user.role === 'LIBRARIAN'}
           />
         ))
       ) : (

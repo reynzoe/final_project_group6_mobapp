@@ -26,8 +26,9 @@ type LibraryContextValue = {
   updateBook: (bookId: string, payload: BookPayload) => Promise<void>;
   deleteBook: (bookId: string) => Promise<void>;
   borrowBook: (bookId: string) => Promise<void>;
-  approveBorrow: (transactionId: string) => Promise<void>;
   returnBook: (transactionId: string) => Promise<void>;
+  requestBookReturn: (transactionId: string) => Promise<void>;
+  approveBookReturn: (transactionId: string) => Promise<void>;
   createUser: (payload: UserPayload) => Promise<void>;
   updateUser: (userId: string, payload: UserPayload) => Promise<void>;
   deleteUser: (userId: string) => Promise<void>;
@@ -232,19 +233,6 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     });
   }
 
-  async function approveBorrow(transactionId: string) {
-    if (!token) {
-      return;
-    }
-
-    await runMutation(async () => {
-      await apiRequest(`/transactions/${transactionId}/approve`, {
-        method: 'POST',
-        token,
-      });
-    });
-  }
-
   async function returnBook(transactionId: string) {
     if (!token) {
       return;
@@ -252,6 +240,32 @@ export function LibraryProvider({ children }: PropsWithChildren) {
 
     await runMutation(async () => {
       await apiRequest(`/transactions/${transactionId}/return`, {
+        method: 'POST',
+        token,
+      });
+    });
+  }
+
+  async function requestBookReturn(transactionId: string) {
+    if (!token) {
+      return;
+    }
+
+    await runMutation(async () => {
+      await apiRequest(`/transactions/${transactionId}/return-request`, {
+        method: 'POST',
+        token,
+      });
+    });
+  }
+
+  async function approveBookReturn(transactionId: string) {
+    if (!token) {
+      return;
+    }
+
+    await runMutation(async () => {
+      await apiRequest(`/transactions/${transactionId}/approve-return`, {
         method: 'POST',
         token,
       });
@@ -374,8 +388,9 @@ export function LibraryProvider({ children }: PropsWithChildren) {
         updateBook,
         deleteBook,
         borrowBook,
-        approveBorrow,
         returnBook,
+        requestBookReturn,
+        approveBookReturn,
         createUser,
         updateUser,
         deleteUser,
