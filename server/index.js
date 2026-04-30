@@ -463,7 +463,7 @@ async function handleRequest(request, response) {
         }
 
         const status = getTransactionStatus(transaction);
-        return status === 'BORROWED' || status === 'OVERDUE';
+        return status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
       }).length;
 
       if (payload.quantity < activeLoans) {
@@ -760,15 +760,11 @@ async function handleRequest(request, response) {
     const returnMatch = pathname.match(/^\/api\/transactions\/([^/]+)\/return$/);
     if (returnMatch && method === 'POST') {
       const store = await hydrateBooks(readStore());
-      const { currentUser } = requireUser(request, store);
+      requireUser(request, store, ['LIBRARIAN']);
       const transaction = store.transactions.find((item) => item.id === returnMatch[1]);
 
       if (!transaction) {
         throw new AppError(404, 'Transaction not found.');
-      }
-
-      if (currentUser.role !== 'LIBRARIAN' && transaction.userId !== currentUser.id) {
-        throw new AppError(403, 'You can only return books from your own account.');
       }
 
       if (transaction.returnDate) {
@@ -798,6 +794,44 @@ async function handleRequest(request, response) {
 
       sendJson(response, 200, {
         message: 'Book returned successfully.',
+        transaction: serializeTransaction(transaction, store),
+      });
+      return;
+    }
+
+    const returnRequestMatch = pathname.match(/^\/api\/transactions\/([^/]+)\/return-request$/);
+    if (returnRequestMatch && method === 'POST') {
+      const store = await hydrateBooks(readStore());
+      const { currentUser } = requireUser(request, store);
+      const transaction = store.transactions.find((item) => item.id === returnRequestMatch[1]);
+
+      if (!transaction) {
+        throw new AppError(404, 'Transaction not found.');
+      }
+
+      if (currentUser.role !== 'LIBRARIAN' && transaction.userId !== currentUser.id) {
+        throw new AppError(403, 'You can only request returns from your own account.');
+      }
+
+      if (transaction.returnDate) {
+        throw new AppError(409, 'This book has already been returned.');
+      }
+
+      const status = getTransactionStatus(transaction);
+
+      if (status === 'PENDING') {
+        throw new AppError(409, 'Pending borrow requests must be approved before returning.');
+      }
+
+      if (status === 'PENDING_RETURN') {
+        throw new AppError(409, 'This return is already waiting for librarian approval.');
+      }
+
+      transaction.status = 'PENDING_RETURN';
+      writeStore(store);
+
+      sendJson(response, 200, {
+        message: 'Return request submitted for approval.',
         transaction: serializeTransaction(transaction, store),
       });
       return;
