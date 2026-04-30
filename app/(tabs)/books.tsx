@@ -19,7 +19,7 @@ import { palette, spacing, typography } from '@/constants/library-theme';
 import { useAuth } from '@/contexts/auth-context';
 import { useLibrary } from '@/contexts/library-context';
 import { Book, BookPayload } from '@/types/library';
-import { validateQuantity, validateRequiredText } from '@/lib/validation';
+import { validateQuantity, validateRequiredText, validateNumericField } from '@/lib/validation';
 
 const emptyBookForm = {
   title: '',
@@ -122,9 +122,9 @@ export default function BooksScreen() {
       title: validateRequiredText('Title', form.title),
       author: validateRequiredText('Author', form.author),
       category: validateRequiredText('Category', form.category),
-      cabinet: validateRequiredText('Cabinet', form.cabinet),
-      rack: validateRequiredText('Rack', form.rack),
-      row: validateRequiredText('Row', form.row),
+      cabinet: validateNumericField('Cabinet', form.cabinet, 1, 2),
+      rack: validateNumericField('Rack', form.rack, 1, 2),
+      row: validateNumericField('Row', form.row, 1, 2),
       quantity: validateQuantity(form.quantity),
     };
 
