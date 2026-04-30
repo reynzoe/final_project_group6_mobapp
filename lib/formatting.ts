@@ -37,6 +37,10 @@ export function formatTransactionStatus(status: TransactionStatus) {
     return 'Borrowed';
   }
 
+  if (status === 'PENDING_RETURN') {
+    return 'Return requested';
+  }
+
   if (status === 'OVERDUE') {
     return 'Overdue';
   }

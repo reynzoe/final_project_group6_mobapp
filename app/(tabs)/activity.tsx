@@ -27,6 +27,8 @@ function TransactionCard({
   onApprove,
   busy,
   showUser,
+  isAdmin,
+  onApproveReturn,
   canApprove,
 }: {
   transaction: Transaction;
@@ -35,8 +37,14 @@ function TransactionCard({
   onApprove: (transaction: Transaction) => void;
   busy: boolean;
   showUser: boolean;
+  isAdmin: boolean;
+  onApproveReturn: (transaction: Transaction) => void;
   canApprove: boolean;
 }) {
+  const isPendingReturn = transaction.status === 'PENDING_RETURN';
+  const returnLabel = isPendingReturn && isAdmin ? 'Process Return' : 'Request Return';
+  const returnHandler = isPendingReturn && isAdmin ? onApproveReturn : onReturn;
+
   return (
     <AppCard>
       <View style={styles.transactionHeader}>
@@ -51,6 +59,8 @@ function TransactionCard({
               ? 'danger'
               : getDisplayStatus(transaction) === 'BORROWED'
                 ? 'warning'
+                : getDisplayStatus(transaction) === 'PENDING_RETURN'
+                  ? 'info'
                 : getDisplayStatus(transaction) === 'PENDING'
                   ? 'primary'
                   : 'success'
@@ -94,10 +104,10 @@ function TransactionCard({
       ) : null}
       {canReturn ? (
         <AppButton
-          label="Process Return"
+          label={returnLabel}
           compact
           loading={busy}
-          onPress={() => onReturn(transaction)}
+          onPress={() => returnHandler(transaction)}
         />
       ) : null}
     </AppCard>
@@ -106,14 +116,19 @@ function TransactionCard({
 
 export default function ActivityScreen() {
   const { user } = useAuth();
-  const { transactions, error, isLoading, isMutating, returnBook, approveBorrow, reloadAll } = useLibrary();
+  const { transactions, error, isLoading, isMutating, requestBookReturn, approveBookReturn, approveBorrow, reloadAll } =
+    useLibrary();
 
   if (!user) {
     return null;
   }
 
+  const isAdmin = user.role === 'LIBRARIAN';
   const activeCount = transactions.filter(
-    (transaction) => transaction.status === 'BORROWED' || transaction.status === 'OVERDUE'
+    (transaction) =>
+      transaction.status === 'BORROWED' ||
+      transaction.status === 'OVERDUE' ||
+      transaction.status === 'PENDING_RETURN'
   ).length;
   const overdueCount = transactions.filter((transaction) => transaction.status === 'OVERDUE').length;
   const returnedCount = transactions.filter((transaction) => transaction.status === 'RETURNED').length;
@@ -125,20 +140,42 @@ export default function ActivityScreen() {
       : transactions;
 
   function confirmReturn(transaction: Transaction) {
-    Alert.alert('Return book', `Mark "${transaction.book.title}" as returned?`, [
+    Alert.alert('Return book', `Request to return "${transaction.book.title}"? This requires librarian approval.`, [
       {
         text: 'Cancel',
         style: 'cancel',
       },
       {
-        text: 'Return',
+        text: 'Request Return',
         onPress: () => {
           void (async () => {
             try {
-              await returnBook(transaction.id);
+              await requestBookReturn(transaction.id);
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Unable to request return.';
+              Alert.alert('Return request failed', message);
+            }
+          })();
+        },
+      },
+    ]);
+  }
+
+  function confirmApproveReturn(transaction: Transaction) {
+    Alert.alert('Process return', `Mark "${transaction.book.title}" as returned?`, [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+      },
+      {
+        text: 'Process Return',
+        onPress: () => {
+          void (async () => {
+            try {
+              await approveBookReturn(transaction.id);
             } catch (error) {
               const message = error instanceof Error ? error.message : 'Unable to process return.';
-              Alert.alert('Return failed', message);
+              Alert.alert('Return approval failed', message);
             }
           })();
         },
@@ -170,9 +207,9 @@ export default function ActivityScreen() {
 
   return (
     <ScreenShell
-      title={user.role === 'LIBRARIAN' ? 'Circulation Desk' : 'Borrowing History'}
+      title={isAdmin ? 'Circulation Desk' : 'Borrowing History'}
       subtitle={
-        user.role === 'LIBRARIAN'
+        isAdmin
           ? 'Monitor current loans, process returns, and keep overdue items moving.'
           : 'Review your borrowing history, due dates, returns, and any late fees.'
       }
@@ -199,7 +236,7 @@ export default function ActivityScreen() {
         </AppCard>
       ) : null}
 
-      {user.role === 'LIBRARIAN' && pendingTransactions.length ? (
+      {isAdmin && pendingTransactions.length ? (
         <AppCard style={styles.pendingCard}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Pending Approvals</Text>
@@ -212,8 +249,10 @@ export default function ActivityScreen() {
               canReturn={false}
               onReturn={confirmReturn}
               onApprove={confirmApprove}
+              onApproveReturn={confirmApproveReturn}
               busy={isMutating}
               showUser
+              isAdmin={isAdmin}
               canApprove
             />
           ))}
@@ -225,12 +264,18 @@ export default function ActivityScreen() {
           <TransactionCard
             key={transaction.id}
             transaction={transaction}
-            canReturn={transaction.status !== 'RETURNED' && !isPendingTransaction(transaction)}
+            canReturn={
+              transaction.status === 'PENDING_RETURN'
+                ? isAdmin
+                : transaction.status !== 'RETURNED' && !isPendingTransaction(transaction)
+            }
             onReturn={confirmReturn}
             onApprove={confirmApprove}
+            onApproveReturn={confirmApproveReturn}
             busy={isMutating}
-            showUser={user.role === 'LIBRARIAN'}
-            canApprove={user.role === 'LIBRARIAN' && isPendingTransaction(transaction)}
+            showUser={isAdmin}
+            isAdmin={isAdmin}
+            canApprove={isAdmin && isPendingTransaction(transaction)}
           />
         ))
       ) : (

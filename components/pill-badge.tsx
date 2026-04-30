@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { palette, radii, spacing, typography } from '@/constants/library-theme';
 
-type BadgeTone = 'primary' | 'success' | 'warning' | 'danger' | 'neutral';
+type BadgeTone = 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 
 type PillBadgeProps = {
   label: string;
@@ -25,6 +25,10 @@ const badgeColors = {
   danger: {
     backgroundColor: palette.dangerSoft,
     color: palette.danger,
+  },
+  info: {
+    backgroundColor: palette.accentSoft,
+    color: palette.accent,
   },
   neutral: {
     backgroundColor: palette.surfaceMuted,

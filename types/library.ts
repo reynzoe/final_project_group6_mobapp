@@ -32,7 +32,7 @@ export type Book = {
   updatedAt: string;
 };
 
-export type TransactionStatus = 'PENDING' | 'BORROWED' | 'RETURNED' | 'OVERDUE';
+export type TransactionStatus = 'PENDING' | 'BORROWED' | 'PENDING_RETURN' | 'RETURNED' | 'OVERDUE';
 
 export type Transaction = {
   id: string;
