@@ -12,43 +12,19 @@ import { useLibrary } from '@/contexts/library-context';
 import { formatCurrency, formatDate, formatTransactionStatus } from '@/lib/formatting';
 import { Transaction } from '@/types/library';
 
-function isPendingTransaction(transaction: Transaction) {
-  return transaction.status === 'PENDING' || (!transaction.dueDate && !transaction.returnDate);
-}
-
-function getDisplayStatus(transaction: Transaction) {
-  return isPendingTransaction(transaction) ? 'PENDING' : transaction.status;
-}
-
 function TransactionCard({
   transaction,
   canReturn,
   onReturn,
-  onApprove,
   busy,
   showUser,
-  isAdmin,
-  onApproveReturn,
-  canApprove,
 }: {
   transaction: Transaction;
   canReturn: boolean;
   onReturn: (transaction: Transaction) => void;
-  onApprove: (transaction: Transaction) => void;
   busy: boolean;
   showUser: boolean;
-  isAdmin: boolean;
-  onApproveReturn: (transaction: Transaction) => void;
 }) {
-  const isPendingReturn = transaction.status === 'PENDING_RETURN';
-  const buttonLabel = isPendingReturn && isAdmin ? 'Process Return' : 'Request Return';
-  const onButtonPress = isPendingReturn && isAdmin ? onApproveReturn : onReturn;
-  canApprove: boolean;
-}) {
-  const isPendingReturn = transaction.status === 'PENDING_RETURN';
-  const returnLabel = isPendingReturn && isAdmin ? 'Process Return' : 'Request Return';
-  const returnHandler = isPendingReturn && isAdmin ? onApproveReturn : onReturn;
-
   return (
     <AppCard>
       <View style={styles.transactionHeader}>
@@ -57,19 +33,13 @@ function TransactionCard({
           <Text style={styles.transactionSubtitle}>{transaction.book.author}</Text>
         </View>
         <PillBadge
-          label={formatTransactionStatus(getDisplayStatus(transaction))}
+          label={formatTransactionStatus(transaction.status)}
           tone={
-            getDisplayStatus(transaction) === 'OVERDUE'
+            transaction.status === 'OVERDUE'
               ? 'danger'
-              : getDisplayStatus(transaction) === 'BORROWED'
+              : transaction.status === 'BORROWED'
                 ? 'warning'
-                : transaction.status === 'PENDING_RETURN'
-                  ? 'info'
-                : getDisplayStatus(transaction) === 'PENDING_RETURN'
-                  ? 'info'
-                : getDisplayStatus(transaction) === 'PENDING'
-                  ? 'primary'
-                  : 'success'
+                : 'success'
           }
         />
       </View>
@@ -100,20 +70,12 @@ function TransactionCard({
         </View>
       ) : null}
 
-      {canApprove ? (
-        <AppButton
-          label="Approve Borrow"
-          compact
-          loading={busy}
-          onPress={() => onApprove(transaction)}
-        />
-      ) : null}
       {canReturn ? (
         <AppButton
-          label={returnLabel}
+          label="Process Return"
           compact
           loading={busy}
-          onPress={() => returnHandler(transaction)}
+          onPress={() => onReturn(transaction)}
         />
       ) : null}
     </AppCard>
@@ -122,88 +84,32 @@ function TransactionCard({
 
 export default function ActivityScreen() {
   const { user } = useAuth();
-  const { transactions, error, isLoading, isMutating, requestBookReturn, approveBookReturn, approveBorrow, reloadAll } =
-    useLibrary();
+  const { transactions, error, isLoading, isMutating, returnBook, reloadAll } = useLibrary();
 
   if (!user) {
     return null;
   }
 
-  const isAdmin = user.role === 'LIBRARIAN';
-  const activeCount = transactions.filter(
-    (transaction) =>
-      transaction.status === 'BORROWED' ||
-      transaction.status === 'OVERDUE' ||
-      transaction.status === 'PENDING_RETURN'
-  ).length;
+  const activeCount = transactions.filter((transaction) => transaction.status !== 'RETURNED').length;
   const overdueCount = transactions.filter((transaction) => transaction.status === 'OVERDUE').length;
   const returnedCount = transactions.filter((transaction) => transaction.status === 'RETURNED').length;
   const outstandingFees = transactions.reduce((sum, transaction) => sum + transaction.lateFee, 0);
-  const pendingTransactions = transactions.filter(isPendingTransaction);
-  const visibleTransactions =
-    user.role === 'LIBRARIAN'
-      ? transactions.filter((transaction) => !isPendingTransaction(transaction))
-      : transactions;
 
   function confirmReturn(transaction: Transaction) {
-    Alert.alert('Return book', `Request to return "${transaction.book.title}"? This requires librarian approval.`, [
+    Alert.alert('Return book', `Mark "${transaction.book.title}" as returned?`, [
       {
         text: 'Cancel',
         style: 'cancel',
       },
       {
-        text: 'Request Return',
+        text: 'Return',
         onPress: () => {
           void (async () => {
             try {
-              await requestBookReturn(transaction.id);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : 'Unable to request return.';
-              Alert.alert('Return request failed', message);
-            }
-          })();
-        },
-      },
-    ]);
-  }
-
-  function confirmApproveReturn(transaction: Transaction) {
-    Alert.alert('Process return', `Mark "${transaction.book.title}" as returned?`, [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Process Return',
-        onPress: () => {
-          void (async () => {
-            try {
-              await approveBookReturn(transaction.id);
+              await returnBook(transaction.id);
             } catch (error) {
               const message = error instanceof Error ? error.message : 'Unable to process return.';
-              Alert.alert('Return approval failed', message);
-            }
-          })();
-        },
-      },
-    ]);
-  }
-
-  function confirmApprove(transaction: Transaction) {
-    Alert.alert('Approve borrow', `Approve "${transaction.book.title}" for ${transaction.user.fullName}?`, [
-      {
-        text: 'Cancel',
-        style: 'cancel',
-      },
-      {
-        text: 'Approve',
-        onPress: () => {
-          void (async () => {
-            try {
-              await approveBorrow(transaction.id);
-            } catch (error) {
-              const message = error instanceof Error ? error.message : 'Unable to approve borrow request.';
-              Alert.alert('Approval failed', message);
+              Alert.alert('Return failed', message);
             }
           })();
         },
@@ -213,9 +119,9 @@ export default function ActivityScreen() {
 
   return (
     <ScreenShell
-      title={isAdmin ? 'Circulation Desk' : 'Borrowing History'}
+      title={user.role === 'LIBRARIAN' ? 'Circulation Desk' : 'Borrowing History'}
       subtitle={
-        isAdmin
+        user.role === 'LIBRARIAN'
           ? 'Monitor current loans, process returns, and keep overdue items moving.'
           : 'Review your borrowing history, due dates, returns, and any late fees.'
       }
@@ -242,46 +148,15 @@ export default function ActivityScreen() {
         </AppCard>
       ) : null}
 
-      {isAdmin && pendingTransactions.length ? (
-        <AppCard style={styles.pendingCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Pending Approvals</Text>
-            <PillBadge label={`${pendingTransactions.length} waiting`} tone="warning" />
-          </View>
-          {pendingTransactions.map((transaction) => (
-            <TransactionCard
-              key={transaction.id}
-              transaction={transaction}
-              canReturn={false}
-              onReturn={confirmReturn}
-              onApprove={confirmApprove}
-              onApproveReturn={confirmApproveReturn}
-              busy={isMutating}
-              showUser
-              isAdmin={isAdmin}
-              canApprove
-            />
-          ))}
-        </AppCard>
-      ) : null}
-
-      {visibleTransactions.length ? (
-        visibleTransactions.map((transaction) => (
+      {transactions.length ? (
+        transactions.map((transaction) => (
           <TransactionCard
             key={transaction.id}
             transaction={transaction}
-            canReturn={
-              transaction.status === 'PENDING_RETURN'
-                ? isAdmin
-                : transaction.status !== 'RETURNED' && !isPendingTransaction(transaction)
-            }
+            canReturn={transaction.status !== 'RETURNED'}
             onReturn={confirmReturn}
-            onApprove={confirmApprove}
-            onApproveReturn={confirmApproveReturn}
             busy={isMutating}
-            showUser={isAdmin}
-            isAdmin={isAdmin}
-            canApprove={isAdmin && isPendingTransaction(transaction)}
+            showUser={user.role === 'LIBRARIAN'}
           />
         ))
       ) : (
@@ -318,20 +193,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     gap: spacing.md,
-  },
-  pendingCard: {
-    gap: spacing.md,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    color: palette.text,
-    fontFamily: typography.heading,
-    fontSize: 22,
   },
   transactionCopy: {
     flex: 1,

@@ -51,10 +51,6 @@ function getTransactionStatus(transaction) {
     return 'PENDING';
   }
 
-  if (transaction.status === 'PENDING_RETURN') {
-    return 'PENDING_RETURN';
-  }
-
   if (transaction.status === 'BORROWED') {
     return 'BORROWED';
   }
@@ -101,7 +97,7 @@ function serializeBook(book, store) {
     }
 
     const status = getTransactionStatus(transaction);
-    return status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
+    return status === 'BORROWED' || status === 'OVERDUE';
   });
   const overdueTransactions = activeTransactions.filter(
     (transaction) => getTransactionStatus(transaction) === 'OVERDUE'
@@ -118,7 +114,7 @@ function serializeUser(user, store) {
   const userTransactions = store.transactions.filter((transaction) => transaction.userId === user.id);
   const activeLoanCount = userTransactions.filter((transaction) => {
     const status = getTransactionStatus(transaction);
-    return status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
+    return status === 'BORROWED' || status === 'OVERDUE';
   }).length;
   const outstandingLateFees = userTransactions
     .filter((transaction) => getTransactionStatus(transaction) === 'OVERDUE')
@@ -183,7 +179,7 @@ function getDashboardForUser(currentUser, store) {
 
   const activeTransactions = visibleTransactions.filter((transaction) => {
     const status = getTransactionStatus(transaction);
-    return status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
+    return status === 'BORROWED' || status === 'OVERDUE';
   });
   const overdueTransactions = activeTransactions.filter(
     (transaction) => getTransactionStatus(transaction) === 'OVERDUE'
@@ -515,7 +511,7 @@ async function handleRequest(request, response) {
         }
 
         const status = getTransactionStatus(transaction);
-        return status === 'PENDING' || status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
+        return status === 'PENDING' || status === 'BORROWED' || status === 'OVERDUE';
       });
 
       if (activeLoans.length > 0) {
