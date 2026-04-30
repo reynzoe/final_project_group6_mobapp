@@ -11,8 +11,21 @@ const coverPalettes = [
   { background: '#F06C9B', accent: '#FDECEF', text: '#FFFFFF' },
   { background: '#243B53', accent: '#8EE3EF', text: '#FFFFFF' },
   { background: '#F7F1D5', accent: '#C75146', text: '#1F2933' },
+  { background: '#7B2D8B', accent: '#F9C6FF', text: '#FFFFFF' },
+  { background: '#1A1A2E', accent: '#E94560', text: '#FFFFFF' },
+  { background: '#FF6B35', accent: '#FFF3E0', text: '#1A0A00' },
+  { background: '#0A3D62', accent: '#60A3D9', text: '#FFFFFF' },
+  { background: '#B8860B', accent: '#FFFDE7', text: '#1A1200' },
+  { background: '#2D6A4F', accent: '#95D5B2', text: '#FFFFFF' },
+  { background: '#3D405B', accent: '#F2CC8F', text: '#FFFFFF' },
+  { background: '#E8D5B7', accent: '#6B4423', text: '#2C1A0E' },
+  // bright
+  { background: '#FF003F', accent: '#FFFC00', text: '#FFFFFF' },
+  { background: '#00E5FF', accent: '#FF1744', text: '#002B33' },
+  { background: '#76FF03', accent: '#1A237E', text: '#0A1A00' },
+  { background: '#FF6D00', accent: '#EEFF41', text: '#1A0F00' },
 ];
-
+njekjfnf 
 type BookCoverProps = {
   title: string;
   author: string;
