@@ -65,14 +65,36 @@ function validateQuantity(quantity) {
   return quantity;
 }
 
+function validateNumericText(field, value, { minDigits = 1, maxDigits = 2 } = {}) {
+  if (value === undefined || value === null) {
+    throw new AppError(422, `${field} is required.`);
+  }
+
+  const normalized = String(value).trim();
+
+  if (!normalized) {
+    throw new AppError(422, `${field} is required.`);
+  }
+
+  if (!/^\d+$/.test(normalized)) {
+    throw new AppError(422, `${field} must be numeric.`);
+  }
+
+  if (normalized.length < minDigits || normalized.length > maxDigits) {
+    throw new AppError(422, `${field} must be ${minDigits}-${maxDigits} digits.`);
+  }
+
+  return normalized;
+}
+
 function validateBookPayload(payload) {
   return {
     title: requireText('Title', payload.title),
     author: requireText('Author', payload.author),
     category: requireText('Category', payload.category),
-    cabinet: requireText('Cabinet', payload.cabinet, { min: 1, max: 40 }),
-    rack: requireText('Rack', payload.rack, { min: 1, max: 40 }),
-    row: requireText('Row', payload.row, { min: 1, max: 40 }),
+    cabinet: validateNumericText('Cabinet', payload.cabinet, { minDigits: 1, maxDigits: 2 }),
+    rack: validateNumericText('Rack', payload.rack, { minDigits: 1, maxDigits: 2 }),
+    row: validateNumericText('Row', payload.row, { minDigits: 1, maxDigits: 2 }),
     quantity: validateQuantity(payload.quantity),
   };
 }

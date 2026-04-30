@@ -33,7 +33,7 @@ const badgeColors = {
 };
 
 export function PillBadge({ label, tone = 'neutral' }: PillBadgeProps) {
-  const colors = badgeColors[tone];
+  const colors = badgeColors[tone] ?? badgeColors.neutral;
 
   return (
     <View style={[styles.badge, { backgroundColor: colors.backgroundColor }]}>

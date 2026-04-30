@@ -1,5 +1,5 @@
 import { PropsWithChildren, ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { palette, radii, spacing, typography } from '@/constants/library-theme';
 
@@ -23,19 +23,24 @@ export function ModalSheet({
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={styles.dismissLayer} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.header}>
-            <View style={styles.headerCopy}>
-              <Text style={styles.title}>{title}</Text>
-              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardAvoiding}
+        >
+          <View style={styles.sheet}>
+            <View style={styles.header}>
+              <View style={styles.headerCopy}>
+                <Text style={styles.title}>{title}</Text>
+                {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+              </View>
+              <Pressable onPress={onClose}>
+                <Text style={styles.close}>Close</Text>
+              </Pressable>
             </View>
-            <Pressable onPress={onClose}>
-              <Text style={styles.close}>Close</Text>
-            </Pressable>
+            <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
+            {footer ? <View style={styles.footer}>{footer}</View> : null}
           </View>
-          <ScrollView contentContainerStyle={styles.content}>{children}</ScrollView>
-          {footer ? <View style={styles.footer}>{footer}</View> : null}
-        </View>
+        </KeyboardAvoidingView>
       </View>
     </Modal>
   );
@@ -49,6 +54,9 @@ const styles = StyleSheet.create({
   },
   dismissLayer: {
     flex: 1,
+  },
+  keyboardAvoiding: {
+    width: '100%',
   },
   sheet: {
     backgroundColor: palette.surface,
