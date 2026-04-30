@@ -272,32 +272,6 @@ export function LibraryProvider({ children }: PropsWithChildren) {
     });
   }
 
-  async function requestBookReturn(transactionId: string) {
-    if (!token) {
-      return;
-    }
-
-    await runMutation(async () => {
-      await apiRequest(`/transactions/${transactionId}/return-request`, {
-        method: 'POST',
-        token,
-      });
-    });
-  }
-
-  async function approveBookReturn(transactionId: string) {
-    if (!token) {
-      return;
-    }
-
-    await runMutation(async () => {
-      await apiRequest(`/transactions/${transactionId}/approve-return`, {
-        method: 'POST',
-        token,
-      });
-    });
-  }
-
   async function createUser(payload: UserPayload) {
     if (!token) {
       return;

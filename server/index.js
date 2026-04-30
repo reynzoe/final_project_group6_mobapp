@@ -47,8 +47,16 @@ function diffDays(laterDate, earlierDate) {
 }
 
 function getTransactionStatus(transaction) {
+  if (transaction.returnDate) {
+    return 'RETURNED';
+  }
+
   if (transaction.status === 'PENDING') {
     return 'PENDING';
+  }
+
+  if (transaction.status === 'PENDING_RETURN') {
+    return 'PENDING_RETURN';
   }
 
   if (transaction.status === 'BORROWED') {
@@ -57,10 +65,6 @@ function getTransactionStatus(transaction) {
 
   if (transaction.status === 'OVERDUE') {
     return 'OVERDUE';
-  }
-
-  if (transaction.returnDate) {
-    return 'RETURNED';
   }
 
   if (!transaction.dueDate) {
@@ -97,7 +101,7 @@ function serializeBook(book, store) {
     }
 
     const status = getTransactionStatus(transaction);
-    return status === 'BORROWED' || status === 'OVERDUE';
+    return status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
   });
   const overdueTransactions = activeTransactions.filter(
     (transaction) => getTransactionStatus(transaction) === 'OVERDUE'
@@ -114,7 +118,7 @@ function serializeUser(user, store) {
   const userTransactions = store.transactions.filter((transaction) => transaction.userId === user.id);
   const activeLoanCount = userTransactions.filter((transaction) => {
     const status = getTransactionStatus(transaction);
-    return status === 'BORROWED' || status === 'OVERDUE';
+    return status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
   }).length;
   const outstandingLateFees = userTransactions
     .filter((transaction) => getTransactionStatus(transaction) === 'OVERDUE')
@@ -179,7 +183,7 @@ function getDashboardForUser(currentUser, store) {
 
   const activeTransactions = visibleTransactions.filter((transaction) => {
     const status = getTransactionStatus(transaction);
-    return status === 'BORROWED' || status === 'OVERDUE';
+    return status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
   });
   const overdueTransactions = activeTransactions.filter(
     (transaction) => getTransactionStatus(transaction) === 'OVERDUE'
@@ -511,7 +515,7 @@ async function handleRequest(request, response) {
         }
 
         const status = getTransactionStatus(transaction);
-        return status === 'PENDING' || status === 'BORROWED' || status === 'OVERDUE';
+        return status === 'PENDING' || status === 'BORROWED' || status === 'OVERDUE' || status === 'PENDING_RETURN';
       });
 
       if (activeLoans.length > 0) {
@@ -777,6 +781,7 @@ async function handleRequest(request, response) {
 
       const book = ensureBookExists(store, transaction.bookId);
       transaction.returnDate = new Date().toISOString();
+      transaction.status = 'RETURNED';
 
       if (booksRepository.isSupabaseEnabled()) {
         const updatedBook = await booksRepository.updateBookAvailability(

@@ -39,10 +39,6 @@ function TransactionCard({
   showUser: boolean;
   isAdmin: boolean;
   onApproveReturn: (transaction: Transaction) => void;
-}) {
-  const isPendingReturn = transaction.status === 'PENDING_RETURN';
-  const buttonLabel = isPendingReturn && isAdmin ? 'Process Return' : 'Request Return';
-  const onButtonPress = isPendingReturn && isAdmin ? onApproveReturn : onReturn;
   canApprove: boolean;
 }) {
   const isPendingReturn = transaction.status === 'PENDING_RETURN';
@@ -273,7 +269,7 @@ export default function ActivityScreen() {
             canReturn={
               transaction.status === 'PENDING_RETURN'
                 ? isAdmin
-                : transaction.status !== 'RETURNED' && !isPendingTransaction(transaction)
+                : !isAdmin && transaction.status !== 'RETURNED' && !isPendingTransaction(transaction)
             }
             onReturn={confirmReturn}
             onApprove={confirmApprove}

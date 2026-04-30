@@ -221,7 +221,9 @@ export default function BooksScreen() {
       .filter(
         (transaction) =>
           transaction.userId === user.id &&
-          (transaction.status === 'BORROWED' || transaction.status === 'OVERDUE')
+          (transaction.status === 'BORROWED' ||
+            transaction.status === 'OVERDUE' ||
+            transaction.status === 'PENDING_RETURN')
       )
       .map((transaction) => transaction.bookId)
   );
